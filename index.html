@@ -1,182 +1,192 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="fr-CA">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>💰 Budget Automatisé - Sans Banque</title>
-    <link rel="stylesheet" href="styles.css">
-    <link rel="manifest" href="manifest.json">
+
+    <title>Budget Automatisé</title>
+
+    <meta
+        name="description"
+        content="Suivi personnel de budget mensuel et hebdomadaire"
+    >
     <meta name="theme-color" content="#4F46E5">
-    <meta name="description" content="Application de budget 100% automatisée sans accès bancaire">
+
+    <link rel="manifest" href="manifest.json">
+    <link rel="stylesheet" href="styles.css">
 </head>
+
 <body>
-    <div class="app-container">
-        <!-- Header -->
+    <main class="app-container">
+
         <header class="header">
             <h1>💰 Budget Automatisé</h1>
-            <p class="subtitle">100% automatique - Sans accès bancaire - Données locales</p>
+            <p class="subtitle">
+                Suivez vos dépenses mensuelles, hebdomadaires et récurrentes
+            </p>
         </header>
 
-        <!-- Section Permissions -->
         <section class="card permissions-card" id="permissionsSection">
-            <h2>🔐 Permissions requises</h2>
+            <h2>🔔 Notifications</h2>
+
             <div class="permission-list">
                 <div class="permission-item">
                     <span class="icon">🔔</span>
+
                     <div>
-                        <strong>Notifications</strong>
-                        <p>Recevoir des alertes de budget</p>
+                        <strong>Alertes de budget</strong>
+                        <p>
+                            Recevez une alerte lorsque votre budget atteint 50 %, 80 % ou 100 %.
+                        </p>
                     </div>
-                    <button class="btn btn-small" onclick="requestNotificationPermission()">
+
+                    <button
+                        type="button"
+                        class="btn btn-small"
+                        onclick="requestNotificationPermission()"
+                    >
                         Activer
                     </button>
                 </div>
-                <div class="permission-item">
-                    <span class="icon">📱</span>
-                    <div>
-                        <strong>Partage de paiement</strong>
-                        <p>Partagez vos reçus automatiquement</p>
-                    </div>
-                    <button class="btn btn-small" onclick="sharePayment()">
-                        Tester
-                    </button>
-                </div>
             </div>
         </section>
 
-        <!-- Section Configuration Budget -->
         <section class="card">
-            <h2>📋 Configurer votre budget</h2>
+            <h2>📋 Configurer le budget</h2>
+
             <div class="form-group">
                 <label for="monthlyBudget">Budget mensuel (CAD $)</label>
-                <input 
-                    type="number" 
-                    id="monthlyBudget" 
-                    placeholder="Ex: 2500" 
+
+                <input
+                    type="number"
+                    id="monthlyBudget"
+                    placeholder="Ex. 2500"
+                    min="0.01"
                     step="0.01"
+                    inputmode="decimal"
                 >
             </div>
-            <button class="btn btn-primary" onclick="saveBudget()">
+
+            <button
+                type="button"
+                class="btn btn-primary"
+                onclick="saveBudget()"
+            >
                 💾 Enregistrer le budget
             </button>
+
             <p class="helper-text">
-                Le budget hebdomadaire sera calculé automatiquement
+                Le budget hebdomadaire est estimé automatiquement en divisant le budget mensuel par 4,33.
             </p>
         </section>
 
-        <!-- Section Affichage Budget -->
         <section class="card">
-            <h2>📊 État de votre budget</h2>
-            
-            <!-- Budget Hebdomadaire -->
+            <h2>📊 Budget actuel</h2>
+
             <div class="budget-card weekly">
                 <div class="budget-header">
-                    <h3>📅 Budget Hebdomadaire</h3>
+                    <h3>📅 Budget hebdomadaire</h3>
                     <span class="budget-percent" id="weeklyPercent">0%</span>
                 </div>
+
                 <div class="budget-amounts">
-                    <span class="spent" id="weeklySpent">$0.00</span>
-                    <span class="total" id="weeklyTotal">$0.00</span>
+                    <span class="spent" id="weeklySpent">0,00 $</span>
+                    <span class="total" id="weeklyTotal">0,00 $</span>
                 </div>
+
                 <div class="progress-bar">
                     <div class="progress-fill" id="weeklyProgress"></div>
                 </div>
+
                 <div class="budget-footer">
-                    <span class="remaining" id="weeklyRemaining">Reste: $0.00</span>
+                    <span class="remaining" id="weeklyRemaining">
+                        Reste : 0,00 $
+                    </span>
                 </div>
             </div>
 
-            <!-- Budget Mensuel -->
             <div class="budget-card monthly">
                 <div class="budget-header">
-                    <h3>📆 Budget Mensuel</h3>
+                    <h3>📆 Budget mensuel</h3>
                     <span class="budget-percent" id="monthlyPercent">0%</span>
                 </div>
+
                 <div class="budget-amounts">
-                    <span class="spent" id="monthlySpent">$0.00</span>
-                    <span class="total" id="monthlyTotal">$0.00</span>
+                    <span class="spent" id="monthlySpent">0,00 $</span>
+                    <span class="total" id="monthlyTotal">0,00 $</span>
                 </div>
+
                 <div class="progress-bar">
                     <div class="progress-fill" id="monthlyProgress"></div>
                 </div>
+
                 <div class="budget-footer">
-                    <span class="remaining" id="monthlyRemaining">Reste: $0.00</span>
+                    <span class="remaining" id="monthlyRemaining">
+                        Reste : 0,00 $
+                    </span>
                 </div>
             </div>
         </section>
 
-        <!-- Section Ajout Manuel -->
         <section class="card">
-            <h2>➕ Ajouter une dépense manuellement</h2>
+            <h2>➕ Ajouter une dépense</h2>
+
             <div class="form-row">
-                <input 
-                    type="number" 
-                    id="expenseAmount" 
-                    placeholder="Montant ($)" 
-                    step="0.01"
-                    class="flex-1"
-                >
-                <input 
-                    type="text" 
-                    id="expenseMerchant" 
-                    placeholder="Merchant (ex: Starbucks)" 
-                    class="flex-1"
-                >
+                <div class="form-group flex-1">
+                    <label for="expenseAmount">Montant (CAD $)</label>
+
+                    <input
+                        type="number"
+                        id="expenseAmount"
+                        placeholder="Ex. 24.99"
+                        min="0.01"
+                        step="0.01"
+                        inputmode="decimal"
+                    >
+                </div>
+
+                <div class="form-group flex-1">
+                    <label for="expenseDate">Date</label>
+
+                    <input
+                        type="date"
+                        id="expenseDate"
+                    >
+                </div>
             </div>
+
             <div class="form-row">
-                <select id="expenseCategory" class="flex-1">
-                    <option value="food">🍔 Alimentation</option>
+                <div class="form-group flex-1">
+                    <label for="expenseMerchant">Nom de la dépense</label>
+
+                    <input
+                        type="text"
+                        id="expenseMerchant"
+                        placeholder="Ex. Loyer, Netflix, IGA"
+                    >
+                </div>
+
+                <div class="form-group flex-1">
+                    <label for="expenseFrequency">Fréquence</label>
+
+                    <select id="expenseFrequency">
+                        <option value="one-time">Unique</option>
+                        <option value="weekly">Hebdomadaire</option>
+                        <option value="monthly">Mensuelle</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="expenseCategory">Catégorie</label>
+
+                <select id="expenseCategory">
+                    <option value="groceries">🥬 Épicerie</option>
+                    <option value="food">🍔 Restaurants et repas</option>
                     <option value="transport">🚗 Transport</option>
-                    <option value="shopping">🛒 Shopping</option>
+                    <option value="shopping">🛒 Achats</option>
                     <option value="entertainment">🎬 Divertissement</option>
-                    <option value="bills">📄 Factures</option>
+                    <option value="bills">📄 Factures et logement</option>
                     <option value="health">💊 Santé</option>
                     <option value="other">📦 Autre</option>
-                </select>
-            </div>
-            <button class="btn btn-primary" onclick="addManualExpense()">
-                Ajouter la dépense
-            </button>
-        </section>
-
-        <!-- Section Partage de Paiement -->
-        <section class="card highlight-card">
-            <h2>🚀 Mode Automatisé</h2>
-            <p>
-                Après chaque paiement, <strong>partagez votre reçu</strong> avec cette app
-                pour un suivi automatique !
-            </p>
-            <button class="btn btn-secondary" onclick="sharePayment()">
-                📤 Partager un paiement
-            </button>
-            <p class="helper-text">
-                Fonctionne avec Google Pay, Samsung Pay, PayPal, etc.
-            </p>
-        </section>
-
-        <!-- Section Historique -->
-        <section class="card">
-            <h2>📜 Historique des transactions</h2>
-            <div id="transactionsList" class="transactions-list">
-                <p class="empty-state">Aucune transaction pour le moment</p>
-            </div>
-            <button class="btn btn-text" onclick="clearTransactions()">
-                🗑️ Effacer l'historique
-            </button>
-        </section>
-
-        <!-- Section Stats -->
-        <section class="card">
-            <h2>📈 Statistiques par catégorie</h2>
-            <div id="categoryStats" class="category-stats">
-                <!-- Rempli dynamiquement -->
-            </div>
-        </section>
-    </div>
-
-    <!-- Scripts -->
-    <script src="parser.js"></script>
-    <script src="notifications.js"></script>
-    <script src="app.js"></script>
-</body>
-</html>
+                </sel
