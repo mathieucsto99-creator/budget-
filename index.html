@@ -189,4 +189,53 @@
                     <option value="bills">📄 Factures et logement</option>
                     <option value="health">💊 Santé</option>
                     <option value="other">📦 Autre</option>
-                </sel
+                </select>
+            </div>
+
+            <button
+                type="button"
+                class="btn btn-primary"
+                onclick="addManualExpense()"
+            >
+                Ajouter la dépense
+            </button>
+
+            <p class="helper-text">
+                Choisissez « Unique » pour une dépense ponctuelle, « Hebdomadaire » pour une dépense qui revient chaque semaine, ou « Mensuelle » pour une dépense comme le loyer ou Netflix.
+            </p>
+        </section>
+
+        <section class="card">
+            <h2>📜 Historique des dépenses</h2>
+
+            <div id="transactionsList" class="transactions-list">
+                <p class="empty-state">
+                    Aucune transaction pour le moment.
+                </p>
+            </div>
+
+            <button
+                type="button"
+                class="btn btn-text"
+                onclick="clearTransactions()"
+            >
+                🗑️ Effacer tout l’historique
+            </button>
+        </section>
+
+        <section class="card">
+            <h2>📈 Répartition du mois actuel</h2>
+
+            <div id="categoryStats" class="category-stats">
+                <p class="empty-state">
+                    Aucune dépense pour le mois actuel.
+                </p>
+            </div>
+        </section>
+
+    </main>
+
+    <script src="notifications.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
