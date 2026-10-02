@@ -298,11 +298,34 @@ body {
     line-height: 1.35;
 }
 
+.transaction-actions {
+    align-items: flex-end;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
 .transaction-amount {
     color: #DC2626;
     font-size: 1rem;
     font-weight: 800;
     white-space: nowrap;
+}
+
+.delete-transaction-button {
+    background: #FEE2E2;
+    border: 1px solid #FCA5A5;
+    border-radius: 6px;
+    color: #B91C1C;
+    cursor: pointer;
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 5px 8px;
+}
+
+.delete-transaction-button:hover {
+    background: #FECACA;
+    border-color: #EF4444;
 }
 
 .empty-state {
@@ -346,7 +369,6 @@ body {
     margin-top: 4px;
 }
 
-/* Calendrier */
 .calendar-card {
     overflow: hidden;
 }
@@ -422,7 +444,7 @@ body {
     background: #FFFFFF;
     border-bottom: 1px solid #E5E7EB;
     border-right: 1px solid #E5E7EB;
-    min-height: 120px;
+    min-height: 130px;
     overflow: hidden;
     padding: 5px;
     position: relative;
@@ -477,7 +499,6 @@ body {
     color: #14532D;
 }
 
-/* Paiement aux 2 semaines : rose vif */
 .calendar-payment.biweekly {
     background: #FCE7F3;
     border: 1px solid #F472B6;
@@ -485,16 +506,24 @@ body {
     color: #831843;
 }
 
-/* Paiement mensuel : bleu */
 .calendar-payment.monthly {
     background: #E0E7FF;
     border-left-color: #4F46E5;
     color: #312E81;
 }
 
+.calendar-payment-top {
+    align-items: center;
+    display: flex;
+    gap: 2px;
+    justify-content: space-between;
+}
+
 .calendar-payment-name {
     display: block;
+    flex: 1;
     font-weight: 800;
+    min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
 }
@@ -503,6 +532,28 @@ body {
     display: block;
     font-size: 0.58rem;
     font-weight: 700;
+}
+
+.calendar-delete-button {
+    align-items: center;
+    background: rgba(255, 255, 255, 0.65);
+    border: none;
+    border-radius: 50%;
+    color: inherit;
+    cursor: pointer;
+    display: inline-flex;
+    font-size: 0.9rem;
+    font-weight: 900;
+    height: 16px;
+    justify-content: center;
+    line-height: 1;
+    min-width: 16px;
+    padding: 0;
+}
+
+.calendar-delete-button:hover {
+    background: #DC2626;
+    color: #FFFFFF;
 }
 
 .calendar-more-payments {
@@ -573,6 +624,18 @@ body {
     background: #4F46E5;
 }
 
+.export-calendar-button {
+    background: #0F766E;
+    color: #FFFFFF;
+    margin-top: 16px;
+}
+
+.export-calendar-button:hover {
+    background: #115E59;
+    box-shadow: 0 4px 12px rgba(15, 118, 110, 0.3);
+    transform: translateY(-1px);
+}
+
 @keyframes slideIn {
     from {
         opacity: 0;
@@ -604,7 +667,7 @@ body {
     }
 
     .calendar-day {
-        min-height: 98px;
+        min-height: 103px;
         padding: 3px;
     }
 
@@ -616,6 +679,12 @@ body {
 
     .calendar-payment-amount {
         font-size: 0.5rem;
+    }
+
+    .calendar-delete-button {
+        font-size: 0.75rem;
+        height: 14px;
+        min-width: 14px;
     }
 
     .calendar-more-payments {
@@ -739,34 +808,14 @@ body {
         border-left-color: #F9A8D4;
         color: #FCE7F3;
     }
-}
-.transaction-actions {
-    align-items: flex-end;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-}
 
-.delete-transaction-button {
-    background: #FEE2E2;
-    border: 1px solid #FCA5A5;
-    border-radius: 6px;
-    color: #B91C1C;
-    cursor: pointer;
-    font-size: 0.72rem;
-    font-weight: 700;
-    padding: 5px 8px;
-}
-
-.delete-transaction-button:hover {
-    background: #FECACA;
-    border-color: #EF4444;
-}
-
-@media (prefers-color-scheme: dark) {
     .delete-transaction-button {
         background: #7F1D1D;
         border-color: #F87171;
         color: #FEE2E2;
+    }
+
+    .export-calendar-button {
+        background: #0F766E;
     }
 }
