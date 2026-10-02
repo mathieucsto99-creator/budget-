@@ -8,7 +8,7 @@
 
     <meta
         name="description"
-        content="Suivi personnel de budget et calendrier de paiements"
+        content="Revenus, paiements récurrents et calendrier de budget"
     >
     <meta name="theme-color" content="#4F46E5">
 
@@ -21,45 +21,111 @@
         <header class="header">
             <h1>💰 Budget Automatisé</h1>
             <p class="subtitle">
-                Budget, paiements récurrents et calendrier
+                Revenus, paiements récurrents et calendrier
             </p>
         </header>
 
         <section class="card">
-            <h2>📋 Configurer le budget</h2>
+            <h2>💵 Ajouter un revenu</h2>
 
-            <div class="form-group">
-                <label for="monthlyBudget">Budget mensuel (CAD $)</label>
+            <div class="form-row">
+                <div class="form-group flex-1">
+                    <label for="incomeAmount">Montant net (CAD $)</label>
 
-                <input
-                    type="number"
-                    id="monthlyBudget"
-                    placeholder="Ex. 2500"
-                    min="0.01"
-                    step="0.01"
-                    inputmode="decimal"
-                >
+                    <input
+                        type="number"
+                        id="incomeAmount"
+                        placeholder="Ex. 1800"
+                        min="0.01"
+                        step="0.01"
+                        inputmode="decimal"
+                    >
+                </div>
+
+                <div class="form-group flex-1">
+                    <label for="incomeDate">Première date de paie</label>
+
+                    <input
+                        type="date"
+                        id="incomeDate"
+                    >
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group flex-1">
+                    <label for="incomeName">Nom du revenu</label>
+
+                    <input
+                        type="text"
+                        id="incomeName"
+                        placeholder="Ex. Salaire Mathieu"
+                    >
+                </div>
+
+                <div class="form-group flex-1">
+                    <label for="incomeFrequency">Fréquence de paie</label>
+
+                    <select id="incomeFrequency">
+                        <option value="weekly">Chaque semaine</option>
+                        <option value="biweekly">Aux 2 semaines</option>
+                        <option value="monthly">Chaque mois</option>
+                        <option value="one-time">Une seule fois</option>
+                    </select>
+                </div>
             </div>
 
             <button
                 type="button"
-                class="btn btn-primary"
-                onclick="saveBudget()"
+                class="btn btn-income"
+                onclick="addIncome()"
             >
-                💾 Enregistrer le budget
+                Ajouter le revenu
             </button>
 
             <p class="helper-text">
-                Le budget hebdomadaire est calculé automatiquement à partir du budget mensuel.
+                Ajoutez autant de revenus que nécessaire. La date choisie sert de point de départ pour les paies récurrentes.
             </p>
         </section>
 
         <section class="card">
-            <h2>📊 Budget actuel</h2>
+            <h2>📊 Aperçu financier actuel</h2>
+
+            <div class="budget-card income-card">
+                <div class="budget-header">
+                    <h3>💵 Revenus prévus ce mois</h3>
+                    <span class="budget-percent" id="monthlyIncomeCount">0 paie</span>
+                </div>
+
+                <div class="budget-amounts">
+                    <span class="spent income-value" id="monthlyIncome">0,00 $</span>
+                    <span class="total">Revenus du mois actuel</span>
+                </div>
+
+                <p class="remaining" id="monthlyBalance">
+                    Solde planifié : 0,00 $
+                </p>
+            </div>
+
+            <div class="budget-card income-card">
+                <div class="budget-header">
+                    <h3>💵 Revenus prévus cette semaine</h3>
+                    <span class="budget-percent" id="weeklyIncomeCount">0 paie</span>
+                </div>
+
+                <div class="budget-amounts">
+                    <span class="spent income-value" id="weeklyIncome">0,00 $</span>
+                    <span class="total">Revenus de la semaine</span>
+                </div>
+
+                <p class="remaining" id="weeklyBalance">
+                    Solde planifié : 0,00 $
+                </p>
+            </div>
 
             <div class="budget-card weekly">
                 <div class="budget-header">
-                    <h3>📅 Budget hebdomadaire</h3>
+                    <h3>📅 Dépenses cette semaine</h3>
                     <span class="budget-percent" id="weeklyPercent">0%</span>
                 </div>
 
@@ -79,7 +145,7 @@
 
             <div class="budget-card monthly">
                 <div class="budget-header">
-                    <h3>📆 Budget mensuel</h3>
+                    <h3>📆 Dépenses ce mois</h3>
                     <span class="budget-percent" id="monthlyPercent">0%</span>
                 </div>
 
@@ -118,10 +184,7 @@
                 <div class="form-group flex-1">
                     <label for="expenseDate">Date de départ</label>
 
-                    <input
-                        type="date"
-                        id="expenseDate"
-                    >
+                    <input type="date" id="expenseDate">
                 </div>
             </div>
 
@@ -170,10 +233,6 @@
             >
                 Ajouter le paiement
             </button>
-
-            <p class="helper-text">
-                Les paiements récurrents se répètent automatiquement dans les mois suivants.
-            </p>
         </section>
 
         <section class="card calendar-card">
@@ -190,7 +249,7 @@
                 <div>
                     <h2 id="calendarTitle">Calendrier</h2>
                     <p class="calendar-summary" id="calendarSummary">
-                        0,00 $ planifié ce mois-ci
+                        0,00 $ de dépenses planifiées
                     </p>
                 </div>
 
@@ -217,7 +276,8 @@
             <div class="calendar-grid" id="calendarGrid"></div>
 
             <div class="calendar-legend">
-                <span><i class="legend-dot one-time-dot"></i> Unique</span>
+                <span><i class="legend-dot income-dot"></i> Revenu</span>
+                <span><i class="legend-dot one-time-dot"></i> Paiement unique</span>
                 <span><i class="legend-dot weekly-dot"></i> Hebdomadaire</span>
                 <span><i class="legend-dot biweekly-dot"></i> Aux 2 semaines</span>
                 <span><i class="legend-dot monthly-dot"></i> Mensuelle</span>
@@ -232,8 +292,18 @@
             </button>
 
             <p class="helper-text">
-                Le rapport affiche tous les paiements du mois sélectionné, même lorsqu’il y en a plusieurs la même journée.
+                Le rapport contient tous les revenus et tous les paiements du mois choisi.
             </p>
+        </section>
+
+        <section class="card">
+            <h2>💵 Historique des revenus</h2>
+
+            <div id="incomesList" class="transactions-list">
+                <p class="empty-state">
+                    Aucun revenu pour le moment.
+                </p>
+            </div>
         </section>
 
         <section class="card">
@@ -255,7 +325,7 @@
         </section>
 
         <section class="card">
-            <h2>📈 Répartition du mois actuel</h2>
+            <h2>📈 Répartition des dépenses du mois</h2>
 
             <div id="categoryStats" class="category-stats">
                 <p class="empty-state">
