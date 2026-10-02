@@ -246,10 +246,22 @@ small {
     margin-top: 3px;
 }
 
-.calendar-more {
-    color: #6d28d9;
+button.calendar-more {
+    background: #ede9fe;
+    border: 1px dashed #7c3aed;
+    border-radius: 4px;
+    color: #5b21b6;
+    cursor: pointer;
+    display: block;
     font-size: 10px;
     font-weight: bold;
+    margin-top: 3px;
+    padding: 3px;
+    width: 100%;
+}
+
+button.calendar-more:hover {
+    background: #ddd6fe;
 }
 
 .calendar-legend {
