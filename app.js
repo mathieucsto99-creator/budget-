@@ -21,19 +21,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     updateUI();
     checkNotificationPermission();
-    registerServiceWorker();
 });
-
-function registerServiceWorker() {
-    if (!('serviceWorker' in navigator)) {
-        return;
-    }
-
-    navigator.serviceWorker.register('sw.js')
-        .catch(error => {
-            console.warn('Le Service Worker n’a pas été enregistré :', error);
-        });
-}
 
 function loadFromStorage() {
     const savedData = localStorage.getItem('budgetApp');
@@ -51,9 +39,9 @@ function loadFromStorage() {
             ? data.transactions
             : [];
 
-        AppState.transactions = AppState.transactions.map(transaction => {
+        AppState.transactions = AppState.transactions.map((transaction, index) => {
             return {
-                id: transaction.id || createId(),
+                id: String(transaction.id || createStableId(transaction, index)),
                 amount: Number(transaction.amount) || 0,
                 merchant: transaction.merchant || 'Dépense sans nom',
                 category: transaction.category || 'other',
@@ -74,6 +62,25 @@ function loadFromStorage() {
         AppState.weeklyBudget = 0;
         AppState.transactions = [];
     }
+}
+
+function createStableId(transaction, index) {
+    const text = [
+        transaction.merchant || '',
+        transaction.amount || '',
+        transaction.date || '',
+        transaction.timestamp || '',
+        index
+    ].join('|');
+
+    let hash = 0;
+
+    for (let position = 0; position < text.length; position += 1) {
+        hash = ((hash << 5) - hash) + text.charCodeAt(position);
+        hash |= 0;
+    }
+
+    return 'legacy-' + Math.abs(hash) + '-' + Date.now() + '-' + index;
 }
 
 function normalizeFrequency(frequency) {
@@ -169,36 +176,30 @@ function addManualExpense() {
     dateInput.value = getLocalDateString(new Date());
     frequencyInput.value = 'one-time';
     categoryInput.value = 'groceries';
-
-    alert(
-        'Dépense ajoutée.\n\n' +
-        merchant + ' : ' + formatMoney(amount) + '\n' +
-        'Date : ' + formatDateOnly(date) + '\n' +
-        'Fréquence : ' + getFrequencyLabel(frequency)
-    );
 }
 
 function deleteTransaction(transactionId) {
     const transaction = AppState.transactions.find(item => {
-        return item.id === transactionId;
+        return String(item.id) === String(transactionId);
     });
 
     if (!transaction) {
+        alert('Ce paiement est introuvable. Actualisez la page puis réessayez.');
         return;
     }
 
-    const recurrenceMessage = transaction.frequency === 'one-time'
+    const recurringText = transaction.frequency === 'one-time'
         ? ''
-        : '\n\nCette dépense est récurrente. Elle sera aussi retirée de toutes les dates futures du calendrier.';
+        : '\n\nComme ce paiement est récurrent, toutes ses répétitions seront retirées du calendrier.';
 
     const confirmed = confirm(
-        'Supprimer cette dépense ?\n\n' +
+        'Supprimer ce paiement ?\n\n' +
         transaction.merchant +
         ' — ' +
         formatMoney(transaction.amount) +
         '\n' +
         getFrequencyLabel(transaction.frequency) +
-        recurrenceMessage
+        recurringText
     );
 
     if (!confirmed) {
@@ -206,7 +207,7 @@ function deleteTransaction(transactionId) {
     }
 
     AppState.transactions = AppState.transactions.filter(item => {
-        return item.id !== transactionId;
+        return String(item.id) !== String(transactionId);
     });
 
     saveToStorage();
@@ -242,7 +243,6 @@ function updateUI() {
 
     updateText('monthlyTotal', formatMoney(AppState.monthlyBudget));
     updateText('weeklyTotal', formatMoney(AppState.weeklyBudget));
-
     updateText('monthlySpent', formatMoney(monthlySpent));
     updateText('weeklySpent', formatMoney(weeklySpent));
 
@@ -344,9 +344,22 @@ function renderCalendar() {
         const paymentsHtml = visibleTransactions.map(transaction => {
             return `
                 <div class="calendar-payment ${transaction.frequency}">
-                    <span class="calendar-payment-name">
-                        ${escapeHtml(transaction.merchant)}
-                    </span>
+                    <div class="calendar-payment-top">
+                        <span class="calendar-payment-name">
+                            ${escapeHtml(transaction.merchant)}
+                        </span>
+
+                        <button
+                            type="button"
+                            class="calendar-delete-button"
+                            onclick="deleteTransaction('${escapeAttribute(transaction.id)}')"
+                            aria-label="Supprimer ${escapeAttribute(transaction.merchant)}"
+                            title="Supprimer ce paiement"
+                        >
+                            ×
+                        </button>
+                    </div>
+
                     <span class="calendar-payment-amount">
                         ${formatCompactMoney(transaction.amount)}
                     </span>
@@ -384,10 +397,9 @@ function renderCalendar() {
         `);
     }
 
-    const totalCells = cells.length;
-    const trailingCells = totalCells % 7 === 0
+    const trailingCells = cells.length % 7 === 0
         ? 0
-        : 7 - (totalCells % 7);
+        : 7 - (cells.length % 7);
 
     for (let emptyCell = 0; emptyCell < trailingCells; emptyCell += 1) {
         cells.push('<div class="calendar-day empty-day" aria-hidden="true"></div>');
@@ -397,8 +409,7 @@ function renderCalendar() {
 }
 
 function showDayPayments(dateKey) {
-    const [year, month, day] = dateKey.split('-').map(Number);
-
+    const [year, month] = dateKey.split('-').map(Number);
     const transactionsByDate = getTransactionsForMonth(year, month - 1);
     const payments = transactionsByDate[dateKey] || [];
 
@@ -406,13 +417,11 @@ function showDayPayments(dateKey) {
         return;
     }
 
-    const title = formatDateOnly(dateKey);
-
-    const list = payments
+    const lines = payments
         .sort((a, b) => b.amount - a.amount)
-        .map(payment => {
+        .map((payment, index) => {
             return (
-                '• ' +
+                (index + 1) + '. ' +
                 payment.merchant +
                 ' — ' +
                 formatMoney(payment.amount) +
@@ -429,13 +438,147 @@ function showDayPayments(dateKey) {
     );
 
     alert(
-        title +
+        formatDateOnly(dateKey) +
         '\n\n' +
-        list +
-        '\n\nTotal : ' +
-        formatMoney(total) +
-        '\n\nPour supprimer un paiement, utilisez le bouton Supprimer dans l’historique.'
+        lines +
+        '\n\nTotal : ' + formatMoney(total) +
+        '\n\nPour supprimer un paiement, utilisez le × visible sur les paiements du calendrier ou le bouton Supprimer dans l’historique.'
     );
+}
+
+function exportCalendar() {
+    if (AppState.transactions.length === 0) {
+        alert('Ajoutez au moins un paiement avant d’exporter le calendrier.');
+        return;
+    }
+
+    const createdAt = formatIcsDateTime(new Date());
+
+    const events = AppState.transactions.map(transaction => {
+        const startDate = dateFromInput(transaction.date);
+        const endDate = new Date(startDate);
+        endDate.setDate(endDate.getDate() + 1);
+
+        const recurrenceRule = getIcsRecurrenceRule(transaction.frequency);
+
+        const lines = [
+            'BEGIN:VEVENT',
+            'UID:' + escapeIcsText(String(transaction.id)) + '@budget-automatise',
+            'DTSTAMP:' + createdAt,
+            'DTSTART;VALUE=DATE:' + formatIcsDate(startDate),
+            'DTEND;VALUE=DATE:' + formatIcsDate(endDate),
+            'SUMMARY:' + escapeIcsText(
+                'Paiement : ' +
+                transaction.merchant +
+                ' (' +
+                formatMoney(transaction.amount) +
+                ')'
+            ),
+            'DESCRIPTION:' + escapeIcsText(
+                'Montant : ' + formatMoney(transaction.amount) + '\n' +
+                'Catégorie : ' + getCategoryLabel(transaction.category) + '\n' +
+                'Fréquence : ' + getFrequencyLabel(transaction.frequency) + '\n' +
+                'Créé avec Budget Automatisé'
+            )
+        ];
+
+        if (recurrenceRule) {
+            lines.push(recurrenceRule);
+        }
+
+        lines.push('END:VEVENT');
+
+        return lines.join('\r\n');
+    });
+
+    const calendarContent = [
+        'BEGIN:VCALENDAR',
+        'VERSION:2.0',
+        'CALSCALE:GREGORIAN',
+        'PRODID:-//Budget Automatisé//FR-CA//',
+        'X-WR-CALNAME:Paiements Budget Automatisé',
+        'X-WR-CALDESC:Paiements exportés depuis Budget Automatisé',
+        ...events,
+        'END:VCALENDAR'
+    ].join('\r\n');
+
+    const blob = new Blob(
+        [calendarContent],
+        { type: 'text/calendar;charset=utf-8' }
+    );
+
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+
+    const now = new Date();
+    const filename =
+        'budget-calendrier-' +
+        now.getFullYear() +
+        '-' +
+        String(now.getMonth() + 1).padStart(2, '0') +
+        '-' +
+        String(now.getDate()).padStart(2, '0') +
+        '.ics';
+
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    setTimeout(() => {
+        URL.revokeObjectURL(url);
+    }, 1000);
+
+    alert(
+        'Le fichier calendrier a été exporté.\n\n' +
+        'Ouvrez le fichier .ics téléchargé pour l’importer dans votre application Calendrier.'
+    );
+}
+
+function getIcsRecurrenceRule(frequency) {
+    if (frequency === 'weekly') {
+        return 'RRULE:FREQ=WEEKLY;INTERVAL=1';
+    }
+
+    if (frequency === 'biweekly') {
+        return 'RRULE:FREQ=WEEKLY;INTERVAL=2';
+    }
+
+    if (frequency === 'monthly') {
+        return 'RRULE:FREQ=MONTHLY;INTERVAL=1';
+    }
+
+    return '';
+}
+
+function formatIcsDate(date) {
+    return (
+        date.getFullYear() +
+        String(date.getMonth() + 1).padStart(2, '0') +
+        String(date.getDate()).padStart(2, '0')
+    );
+}
+
+function formatIcsDateTime(date) {
+    return (
+        date.getUTCFullYear() +
+        String(date.getUTCMonth() + 1).padStart(2, '0') +
+        String(date.getUTCDate()).padStart(2, '0') +
+        'T' +
+        String(date.getUTCHours()).padStart(2, '0') +
+        String(date.getUTCMinutes()).padStart(2, '0') +
+        String(date.getUTCSeconds()).padStart(2, '0') +
+        'Z'
+    );
+}
+
+function escapeIcsText(text) {
+    return String(text)
+        .replace(/\\/g, '\\\\')
+        .replace(/\n/g, '\\n')
+        .replace(/,/g, '\\,')
+        .replace(/;/g, '\\;');
 }
 
 function getTransactionsForMonth(year, month) {
@@ -499,11 +642,10 @@ function getOccurrenceDatesInPeriod(transaction, periodStart, periodEnd) {
     }
 
     if (transaction.frequency === 'one-time') {
-        const isInPeriod =
+        return (
             transactionStartDate >= periodStart &&
-            transactionStartDate <= periodEnd;
-
-        return isInPeriod ? [transactionStartDate] : [];
+            transactionStartDate <= periodEnd
+        ) ? [transactionStartDate] : [];
     }
 
     if (transaction.frequency === 'weekly') {
@@ -662,8 +804,7 @@ function renderTransactions() {
                     <button
                         type="button"
                         class="delete-transaction-button"
-                        onclick="deleteTransaction('${transaction.id}')"
-                        aria-label="Supprimer ${escapeHtml(transaction.merchant)}"
+                        onclick="deleteTransaction('${escapeAttribute(transaction.id)}')"
                     >
                         Supprimer
                     </button>
@@ -681,10 +822,8 @@ function renderCategoryStats() {
     }
 
     const now = new Date();
-
     const startOfMonth = getStartOfMonth(now);
     const endOfMonth = getEndOfMonth(now);
-
     const categoryTotals = {};
 
     AppState.transactions.forEach(transaction => {
@@ -700,11 +839,9 @@ function renderCategoryStats() {
 
         const category = transaction.category || 'other';
 
-        if (!categoryTotals[category]) {
-            categoryTotals[category] = 0;
-        }
-
-        categoryTotals[category] += transaction.amount * occurrences;
+        categoryTotals[category] =
+            (categoryTotals[category] || 0) +
+            transaction.amount * occurrences;
     });
 
     const totalSpent = Object.values(categoryTotals).reduce(
@@ -746,7 +883,6 @@ function clearTransactions() {
     }
 
     AppState.transactions = [];
-
     saveToStorage();
     updateUI();
 }
@@ -845,11 +981,10 @@ async function requestNotificationPermission() {
 }
 
 function checkNotificationPermission() {
-    if (!window.NotificationManager) {
-        return;
-    }
-
-    if (NotificationManager.checkPermission() === 'granted') {
+    if (
+        window.NotificationManager &&
+        NotificationManager.checkPermission() === 'granted'
+    ) {
         const permissionSection = document.getElementById('permissionsSection');
 
         if (permissionSection) {
@@ -1050,6 +1185,14 @@ function createId() {
 function escapeHtml(text) {
     const element = document.createElement('div');
     element.textContent = text || '';
-
     return element.innerHTML;
+}
+
+function escapeAttribute(text) {
+    return String(text)
+        .replace(/&/g, '&amp;')
+        .replace(/'/g, '&#39;')
+        .replace(/"/g, '&quot;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
 }
