@@ -1,34 +1,21 @@
-const AppState = {
-    payments: [],
+const STORAGE_KEY = 'budgetApp';
+
+const State = {
     incomes: [],
-    plannedExpenses: [],
+    payments: [],
+    goals: [],
     debts: [],
     calendarDate: firstDayOfMonth(new Date())
 };
 
 document.addEventListener('DOMContentLoaded', function () {
     loadData();
-
-    const today = localDateString(new Date());
-
-    setInputDate('incomeDate', today);
-    setInputDate('expenseDate', today);
-    setInputDate('plannedDate', today);
-    setInputDate('debtPaymentDate', today);
-
-    refreshApp();
+    setDefaultDates();
+    renderAll();
 });
 
-function setInputDate(id, date) {
-    const input = document.getElementById(id);
-
-    if (input) {
-        input.value = date;
-    }
-}
-
 function loadData() {
-    const saved = localStorage.getItem('budgetApp');
+    const saved = localStorage.getItem(STORAGE_KEY);
 
     if (!saved) {
         return;
@@ -37,226 +24,288 @@ function loadData() {
     try {
         const data = JSON.parse(saved);
 
-        const oldPayments = Array.isArray(data.payments)
-            ? data.payments
+        State.incomes = Array.isArray(data.incomes)
+            ? data.incomes.map(normalizeIncome)
+            : [];
+
+        State.payments = Array.isArray(data.payments)
+            ? data.payments.map(normalizePayment)
             : Array.isArray(data.transactions)
-                ? data.transactions
+                ? data.transactions.map(normalizePayment)
                 : [];
 
-        AppState.payments = oldPayments.map(function (item, index) {
-            return normalizeRecurringItem(item, index, 'payment');
-        });
-
-        AppState.incomes = Array.isArray(data.incomes)
-            ? data.incomes.map(function (item, index) {
-                return normalizeRecurringItem(item, index, 'income');
-            })
+        State.goals = Array.isArray(data.goals)
+            ? data.goals.map(normalizeGoal)
             : [];
 
-        AppState.plannedExpenses = Array.isArray(data.plannedExpenses)
-            ? data.plannedExpenses.map(function (item, index) {
-                return normalizeRecurringItem(item, index, 'planned');
-            })
+        State.debts = Array.isArray(data.debts)
+            ? data.debts.map(normalizeDebt)
             : [];
-
-        AppState.debts = Array.isArray(data.debts)
-            ? data.debts.map(function (item, index) {
-                return normalizeDebt(item, index);
-            })
-            : [];
-
-        saveData();
     } catch (error) {
-        console.error('Erreur de lecture des données :', error);
-
-        AppState.payments = [];
-        AppState.incomes = [];
-        AppState.plannedExpenses = [];
-        AppState.debts = [];
+        console.error(error);
+        alert('Impossible de lire les données sauvegardées. Elles ne sont pas remplacées automatiquement.');
     }
 }
 
-function normalizeRecurringItem(item, index, type) {
+function saveData() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        incomes: State.incomes,
+        payments: State.payments,
+        goals: State.goals,
+        debts: State.debts
+    }));
+}
+
+function normalizeIncome(item) {
     return {
-        id: String(
-            item.id ||
-            type + '-' + Date.now() + '-' + index
-        ),
-        amount: Number(item.amount) || 0,
-        merchant: item.merchant || item.name || (
-            type === 'income'
-                ? 'Revenu sans nom'
-                : type === 'planned'
-                    ? 'Dépense prévue'
-                    : 'Paiement sans nom'
-        ),
-        category: item.category || 'other',
-        date: item.date || localDateString(
-            new Date(item.timestamp || new Date())
-        ),
+        id: String(item.id || createId()),
+        name: item.name || item.merchant || 'Revenu sans nom',
+        amount: positive(item.amount),
+        date: validDate(item.date),
         frequency: validFrequency(item.frequency),
         timestamp: item.timestamp || new Date().toISOString()
     };
 }
 
-function normalizeDebt(item, index) {
+function normalizePayment(item) {
     return {
-        id: String(item.id || 'debt-' + Date.now() + '-' + index),
+        id: String(item.id || createId()),
+        name: item.name || item.merchant || 'Paiement sans nom',
+        amount: positive(item.amount),
+        category: item.category || 'other',
+        date: validDate(item.date),
+        frequency: validFrequency(item.frequency),
+        timestamp: item.timestamp || new Date().toISOString()
+    };
+}
+
+function normalizeGoal(item) {
+    return {
+        id: String(item.id || createId()),
+        name: item.name || 'Objectif sans nom',
+        amount: positive(item.amount),
+        date: validDate(item.date),
+        savings: Array.isArray(item.savings)
+            ? item.savings.map(function (saving) {
+                return {
+                    id: String(saving.id || createId()),
+                    amount: positive(saving.amount),
+                    date: validDate(saving.date),
+                    timestamp: saving.timestamp || new Date().toISOString()
+                };
+            })
+            : [],
+        timestamp: item.timestamp || new Date().toISOString()
+    };
+}
+
+function normalizeDebt(item) {
+    return {
+        id: String(item.id || createId()),
         name: item.name || 'Dette sans nom',
-        totalAmount: Number(item.totalAmount) || 0,
-        paymentAmount: Number(item.paymentAmount) || 0,
-        paymentDate: item.paymentDate || localDateString(new Date()),
+        totalAmount: positive(item.totalAmount),
+        paymentAmount: positive(item.paymentAmount),
+        paymentDate: validDate(item.paymentDate),
         frequency: validDebtFrequency(item.frequency),
         completedPayments: item.completedPayments || {},
         timestamp: item.timestamp || new Date().toISOString()
     };
 }
 
-function saveData() {
-    localStorage.setItem('budgetApp', JSON.stringify({
-        payments: AppState.payments,
-        incomes: AppState.incomes,
-        plannedExpenses: AppState.plannedExpenses,
-        debts: AppState.debts
-    }));
+function setDefaultDates() {
+    const today = localDateString(new Date());
+
+    [
+        'incomeDate',
+        'expenseDate',
+        'goalDate',
+        'debtPaymentDate'
+    ].forEach(function (id) {
+        const input = document.getElementById(id);
+
+        if (input && !input.value) {
+            input.value = today;
+        }
+    });
 }
 
 function addIncome() {
-    const amount = getNumber('incomeAmount');
-    const merchant = getValue('incomeName') || 'Revenu sans nom';
-    const date = getValue('incomeDate');
-    const frequency = validFrequency(getValue('incomeFrequency'));
+    const amount = readNumber('incomeAmount');
+    const name = readText('incomeName') || 'Revenu sans nom';
+    const date = readText('incomeDate');
+    const frequency = validFrequency(readText('incomeFrequency'));
 
-    if (!isPositive(amount)) {
-        alert('Veuillez entrer un montant de revenu valide.');
+    if (!isPositive(amount) || !date) {
+        alert('Entrez un montant et une date valide.');
         return;
     }
 
-    if (!date) {
-        alert('Veuillez choisir une première date de paie.');
-        return;
-    }
-
-    AppState.incomes.unshift({
+    State.incomes.unshift({
         id: createId(),
+        name: name,
         amount: amount,
-        merchant: merchant,
-        category: 'income',
         date: date,
         frequency: frequency,
         timestamp: new Date().toISOString()
     });
 
-    AppState.calendarDate = firstDayOfMonth(dateFromString(date));
-
+    State.calendarDate = firstDayOfMonth(dateFromString(date));
     saveData();
-    refreshApp();
+    renderAll();
 
-    clearInput('incomeAmount');
-    clearInput('incomeName');
-    setInputDate('incomeDate', localDateString(new Date()));
-    setValue('incomeFrequency', 'biweekly');
+    clear('incomeAmount');
+    clear('incomeName');
 }
 
 function addPayment() {
-    const amount = getNumber('expenseAmount');
-    const merchant = getValue('expenseMerchant') || 'Paiement sans nom';
-    const date = getValue('expenseDate');
-    const frequency = validFrequency(getValue('expenseFrequency'));
-    const category = getValue('expenseCategory');
+    const amount = readNumber('expenseAmount');
+    const name = readText('expenseMerchant') || 'Paiement sans nom';
+    const date = readText('expenseDate');
+    const frequency = validFrequency(readText('expenseFrequency'));
+    const category = readText('expenseCategory');
 
-    if (!isPositive(amount)) {
-        alert('Veuillez entrer un montant valide.');
+    if (!isPositive(amount) || !date) {
+        alert('Entrez un montant et une date valide.');
         return;
     }
 
-    if (!date) {
-        alert('Veuillez choisir une date de départ.');
-        return;
-    }
-
-    AppState.payments.unshift({
+    State.payments.unshift({
         id: createId(),
+        name: name,
         amount: amount,
-        merchant: merchant,
         category: category,
         date: date,
         frequency: frequency,
         timestamp: new Date().toISOString()
     });
 
-    AppState.calendarDate = firstDayOfMonth(dateFromString(date));
-
+    State.calendarDate = firstDayOfMonth(dateFromString(date));
     saveData();
-    refreshApp();
+    renderAll();
 
-    clearInput('expenseAmount');
-    clearInput('expenseMerchant');
-    setInputDate('expenseDate', localDateString(new Date()));
-    setValue('expenseFrequency', 'one-time');
-    setValue('expenseCategory', 'groceries');
+    clear('expenseAmount');
+    clear('expenseMerchant');
 }
 
-function addPlannedExpense() {
-    const amount = getNumber('plannedAmount');
-    const merchant = getValue('plannedName') || 'Dépense prévue';
-    const date = getValue('plannedDate');
-    const category = getValue('plannedCategory');
+function addGoal() {
+    const amount = readNumber('goalAmount');
+    const name = readText('goalName') || 'Objectif sans nom';
+    const date = readText('goalDate');
 
-    if (!isPositive(amount)) {
-        alert('Veuillez entrer un montant prévu valide.');
+    if (!isPositive(amount) || !date) {
+        alert('Entrez un montant objectif et une date valide.');
         return;
     }
 
-    if (!date) {
-        alert('Veuillez choisir une date prévue.');
-        return;
-    }
-
-    AppState.plannedExpenses.unshift({
+    State.goals.unshift({
         id: createId(),
+        name: name,
         amount: amount,
-        merchant: merchant,
-        category: category,
         date: date,
-        frequency: 'one-time',
+        savings: [],
         timestamp: new Date().toISOString()
     });
 
-    AppState.calendarDate = firstDayOfMonth(dateFromString(date));
+    saveData();
+    renderAll();
+
+    clear('goalAmount');
+    clear('goalName');
+}
+
+function addGoalSaving(goalId) {
+    const goal = State.goals.find(function (item) {
+        return item.id === goalId;
+    });
+
+    if (!goal) {
+        return;
+    }
+
+    const saved = goalSaved(goal);
+    const remaining = Math.max(0, goal.amount - saved);
+
+    if (remaining === 0) {
+        alert('Cet objectif est déjà atteint.');
+        return;
+    }
+
+    const answer = prompt(
+        'Montant à ajouter à « ' + goal.name + ' »\n\n' +
+        'Objectif : ' + money(goal.amount) + '\n' +
+        'Déjà épargné : ' + money(saved) + '\n' +
+        'Reste : ' + money(remaining)
+    );
+
+    if (answer === null) {
+        return;
+    }
+
+    const amount = Number.parseFloat(String(answer).replace(',', '.'));
+
+    if (!isPositive(amount)) {
+        alert('Entrez un montant valide.');
+        return;
+    }
+
+    goal.savings.unshift({
+        id: createId(),
+        amount: Math.min(amount, remaining),
+        date: localDateString(new Date()),
+        timestamp: new Date().toISOString()
+    });
 
     saveData();
-    refreshApp();
+    renderAll();
+}
 
-    clearInput('plannedAmount');
-    clearInput('plannedName');
-    setInputDate('plannedDate', localDateString(new Date()));
-    setValue('plannedCategory', 'other');
+function deleteGoalSaving(goalId, savingId) {
+    const goal = State.goals.find(function (item) {
+        return item.id === goalId;
+    });
+
+    if (!goal || !confirm('Retirer cette mise de côté ?')) {
+        return;
+    }
+
+    goal.savings = goal.savings.filter(function (saving) {
+        return saving.id !== savingId;
+    });
+
+    saveData();
+    renderAll();
+}
+
+function deleteGoal(id) {
+    if (!confirm('Supprimer cet objectif et ses mises de côté ?')) {
+        return;
+    }
+
+    State.goals = State.goals.filter(function (goal) {
+        return goal.id !== id;
+    });
+
+    saveData();
+    renderAll();
 }
 
 function addDebt() {
-    const name = getValue('debtName') || 'Dette sans nom';
-    const totalAmount = getNumber('debtTotal');
-    const paymentAmount = getNumber('debtPaymentAmount');
-    const paymentDate = getValue('debtPaymentDate');
-    const frequency = validDebtFrequency(getValue('debtFrequency'));
+    const name = readText('debtName') || 'Dette sans nom';
+    const totalAmount = readNumber('debtTotal');
+    const paymentAmount = readNumber('debtPaymentAmount');
+    const paymentDate = readText('debtPaymentDate');
+    const frequency = validDebtFrequency(readText('debtFrequency'));
 
-    if (!isPositive(totalAmount)) {
-        alert('Veuillez entrer le montant total dû.');
+    if (
+        !isPositive(totalAmount) ||
+        !isPositive(paymentAmount) ||
+        !paymentDate
+    ) {
+        alert('Entrez le total dû, le paiement et la première date.');
         return;
     }
 
-    if (!isPositive(paymentAmount)) {
-        alert('Veuillez entrer le montant de chaque paiement.');
-        return;
-    }
-
-    if (!paymentDate) {
-        alert('Veuillez choisir la première date de paiement.');
-        return;
-    }
-
-    AppState.debts.unshift({
+    State.debts.unshift({
         id: createId(),
         name: name,
         totalAmount: totalAmount,
@@ -267,106 +316,99 @@ function addDebt() {
         timestamp: new Date().toISOString()
     });
 
-    AppState.calendarDate = firstDayOfMonth(dateFromString(paymentDate));
-
+    State.calendarDate = firstDayOfMonth(dateFromString(paymentDate));
     saveData();
-    refreshApp();
+    renderAll();
 
-    clearInput('debtName');
-    clearInput('debtTotal');
-    clearInput('debtPaymentAmount');
-    setInputDate('debtPaymentDate', localDateString(new Date()));
-    setValue('debtFrequency', 'monthly');
+    clear('debtName');
+    clear('debtTotal');
+    clear('debtPaymentAmount');
 }
 
-function toggleDebtPayment(debtId, paymentDateKey, isChecked) {
-    const debt = AppState.debts.find(function (item) {
-        return String(item.id) === String(debtId);
+function toggleDebtPayment(debtId, dateKey, checked) {
+    const debt = State.debts.find(function (item) {
+        return item.id === debtId;
     });
 
     if (!debt) {
         return;
     }
 
-    if (!debt.completedPayments) {
-        debt.completedPayments = {};
-    }
-
-    /*
-     * true = paiement confirmé manuellement
-     * false = paiement explicitement décoché
-     * absence de valeur = automatisation selon la date
-     */
-    debt.completedPayments[paymentDateKey] = isChecked ? true : false;
-
+    debt.completedPayments[dateKey] = checked;
     saveData();
-    refreshApp();
+    renderAll();
 }
 
 function deleteIncome(id) {
-    deleteFromList('incomes', id, 'Supprimer ce revenu ?');
-}
-
-function deletePayment(id) {
-    deleteFromList('payments', id, 'Supprimer ce paiement ?');
-}
-
-function deletePlannedExpense(id) {
-    deleteFromList('plannedExpenses', id, 'Supprimer cette dépense prévue ?');
-}
-
-function deleteDebt(id) {
-    deleteFromList('debts', id, 'Supprimer cette dette ?');
-}
-
-function deleteFromList(listName, id, message) {
-    if (!confirm(message)) {
+    if (!confirm('Supprimer ce revenu ?')) {
         return;
     }
 
-    AppState[listName] = AppState[listName].filter(function (item) {
-        return String(item.id) !== String(id);
+    State.incomes = State.incomes.filter(function (item) {
+        return item.id !== id;
     });
 
     saveData();
-    refreshApp();
+    renderAll();
 }
 
-function clearAllPayments() {
-    if (!confirm('Voulez-vous vraiment effacer tous les paiements réguliers ?')) {
+function deletePayment(id) {
+    if (!confirm('Supprimer ce paiement ?')) {
         return;
     }
 
-    AppState.payments = [];
+    State.payments = State.payments.filter(function (item) {
+        return item.id !== id;
+    });
+
     saveData();
-    refreshApp();
+    renderAll();
+}
+
+function deleteDebt(id) {
+    if (!confirm('Supprimer cette dette ?')) {
+        return;
+    }
+
+    State.debts = State.debts.filter(function (item) {
+        return item.id !== id;
+    });
+
+    saveData();
+    renderAll();
+}
+
+function clearAllPayments() {
+    if (!confirm('Effacer tous les paiements ?')) {
+        return;
+    }
+
+    State.payments = [];
+    saveData();
+    renderAll();
 }
 
 function changeCalendarMonth(direction) {
-    AppState.calendarDate = new Date(
-        AppState.calendarDate.getFullYear(),
-        AppState.calendarDate.getMonth() + direction,
-        1,
-        12,
-        0,
-        0,
-        0
+    State.calendarDate = new Date(
+        State.calendarDate.getFullYear(),
+        State.calendarDate.getMonth() + direction,
+        1
     );
 
-    refreshApp();
+    renderCalendar();
 }
 
-function refreshApp() {
-    renderFinancialSummary();
+function renderAll() {
+    renderSummary();
     renderCalendar();
     renderIncomes();
     renderPayments();
-    renderPlannedExpenses();
+    renderGoals();
     renderDebts();
-    renderCategoryStats();
+    renderCategories();
 }
 
-function renderFinancialSummary() {
+function renderSummary() {
     const now = new Date();
 
     const monthStart = startOfMonth(now);
@@ -374,409 +416,238 @@ function renderFinancialSummary() {
     const weekStart = startOfWeek(now);
     const weekEnd = endOfWeek(now);
 
-    const monthlyIncome = amountInPeriod(
-        AppState.incomes,
-        monthStart,
-        monthEnd
-    );
+    const monthIncome = totalRecurring(State.incomes, monthStart, monthEnd);
+    const weekIncome = totalRecurring(State.incomes, weekStart, weekEnd);
 
-    const weeklyIncome = amountInPeriod(
-        AppState.incomes,
-        weekStart,
-        weekEnd
-    );
+    const monthExpenses =
+        totalRecurring(State.payments, monthStart, monthEnd) +
+        totalConfirmedDebt(monthStart, monthEnd);
 
-    const monthlyIncomeCount = occurrenceCountInPeriod(
-        AppState.incomes,
-        monthStart,
-        monthEnd
-    );
+    const weekExpenses =
+        totalRecurring(State.payments, weekStart, weekEnd) +
+        totalConfirmedDebt(weekStart, weekEnd);
 
-    const weeklyIncomeCount = occurrenceCountInPeriod(
-        AppState.incomes,
-        weekStart,
-        weekEnd
-    );
+    set('monthlyIncome', money(monthIncome));
+    set('weeklyIncome', money(weekIncome));
+    set('monthlySpent', money(monthExpenses));
+    set('weeklySpent', money(weekExpenses));
+    set('monthlyBalance', money(monthIncome - monthExpenses));
+    set('weeklyBalance', money(weekIncome - weekExpenses));
 
-    const monthlyPaymentSpent =
-        amountInPeriod(AppState.payments, monthStart, monthEnd) +
-        amountInPeriod(AppState.plannedExpenses, monthStart, monthEnd) +
-        confirmedDebtPaymentsInPeriod(monthStart, monthEnd);
-
-    const weeklyPaymentSpent =
-        amountInPeriod(AppState.payments, weekStart, weekEnd) +
-        amountInPeriod(AppState.plannedExpenses, weekStart, weekEnd) +
-        confirmedDebtPaymentsInPeriod(weekStart, weekEnd);
-
-    setText('monthlyIncome', money(monthlyIncome));
-    setText('weeklyIncome', money(weeklyIncome));
-    setText(
+    set(
         'monthlyIncomeCount',
-        monthlyIncomeCount + (monthlyIncomeCount > 1 ? ' paies' : ' paie')
+        countRecurring(State.incomes, monthStart, monthEnd) + ' paie(s)'
     );
-    setText(
+
+    set(
         'weeklyIncomeCount',
-        weeklyIncomeCount + (weeklyIncomeCount > 1 ? ' paies' : ' paie')
+        countRecurring(State.incomes, weekStart, weekEnd) + ' paie(s)'
     );
 
-    setText(
-        'monthlyBalance',
-        'Solde planifié : ' + money(monthlyIncome - monthlyPaymentSpent)
-    );
-    setText(
-        'weeklyBalance',
-        'Solde planifié : ' + money(weeklyIncome - weeklyPaymentSpent)
+    set(
+        'monthlyPercent',
+        percentage(monthExpenses, monthIncome) + '% des revenus'
     );
 
-    setText('monthlySpent', money(monthlyPaymentSpent));
-    setText('weeklySpent', money(weeklyPaymentSpent));
-    setText('monthlyTotal', money(monthlyIncome));
-    setText('weeklyTotal', money(weeklyIncome));
-
-    const monthlyPercent = percent(monthlyPaymentSpent, monthlyIncome);
-    const weeklyPercent = percent(weeklyPaymentSpent, weeklyIncome);
-
-    setText('monthlyPercent', monthlyPercent + '%');
-    setText('weeklyPercent', weeklyPercent + '%');
-
-    updateBar('monthlyProgress', monthlyPercent);
-    updateBar('weeklyProgress', weeklyPercent);
-
-    updateRemaining(
-        'monthlyRemaining',
-        monthlyIncome - monthlyPaymentSpent
-    );
-
-    updateRemaining(
-        'weeklyRemaining',
-        weeklyIncome - weeklyPaymentSpent
+    set(
+        'weeklyPercent',
+        percentage(weekExpenses, weekIncome) + '% des revenus'
     );
 }
 
 function renderCalendar() {
-    const grid = document.getElementById('calendarGrid');
-    const title = document.getElementById('calendarTitle');
-    const summary = document.getElementById('calendarSummary');
+    const year = State.calendarDate.getFullYear();
+    const month = State.calendarDate.getMonth();
+    const start = new Date(year, month, 1);
+    const days = new Date(year, month + 1, 0).getDate();
 
-    const year = AppState.calendarDate.getFullYear();
-    const month = AppState.calendarDate.getMonth();
-    const start = new Date(year, month, 1, 12, 0, 0, 0);
-    const end = new Date(year, month + 1, 0, 12, 0, 0, 0);
+    const incomeMap = recurringMap(State.incomes, year, month, 'income');
+    const paymentMap = recurringMap(State.payments, year, month, 'payment');
+    const debtMap = debtMapForMonth(year, month);
 
-    title.textContent = monthTitle(start);
+    set('calendarTitle', monthTitle(start));
 
-    const incomesByDay = itemsForMonth(AppState.incomes, year, month);
-    const paymentsByDay = itemsForMonth(AppState.payments, year, month);
-    const plannedByDay = itemsForMonth(AppState.plannedExpenses, year, month);
-    const debtsByDay = debtItemsForMonth(year, month);
+    const incomeTotal = sum(Object.values(incomeMap).flat());
+    const expenseTotal =
+        sum(Object.values(paymentMap).flat()) +
+        sum(Object.values(debtMap).flat());
 
-    const incomeTotal = totalByDay(incomesByDay);
-    const paymentTotal =
-        totalByDay(paymentsByDay) +
-        totalByDay(plannedByDay) +
-        totalByDay(debtsByDay);
-
-    summary.textContent =
-        'Revenus : ' +
-        money(incomeTotal) +
-        ' • Dépenses : ' +
-        money(paymentTotal) +
-        ' • Solde : ' +
-        money(incomeTotal - paymentTotal);
+    set(
+        'calendarSummary',
+        'Revenus : ' + money(incomeTotal) +
+        ' • Dépenses : ' + money(expenseTotal) +
+        ' • Solde : ' + money(incomeTotal - expenseTotal)
+    );
 
     const cells = [];
-    const firstWeekday = mondayWeekday(start);
 
-    for (let index = 0; index < firstWeekday; index += 1) {
-        cells.push('<div class="calendar-day empty-day"></div>');
+    for (let i = 0; i < mondayWeekday(start); i += 1) {
+        cells.push('<div class="calendar-day empty"></div>');
     }
 
-    for (let day = 1; day <= end.getDate(); day += 1) {
+    for (let day = 1; day <= days; day += 1) {
         const key = dateKey(year, month, day);
-        const calendarItems = [];
 
-        pushCalendarItems(calendarItems, incomesByDay[key], 'income');
-        pushCalendarItems(calendarItems, paymentsByDay[key], 'payment');
-        pushCalendarItems(calendarItems, plannedByDay[key], 'planned');
-        pushCalendarItems(calendarItems, debtsByDay[key], 'debt');
+        const items = []
+            .concat(incomeMap[key] || [])
+            .concat(paymentMap[key] || [])
+            .concat(debtMap[key] || []);
 
-        calendarItems.sort(function (first, second) {
-            const order = {
-                income: 1,
-                debt: 2,
-                planned: 3,
-                payment: 4
-            };
-
-            if (first.itemType !== second.itemType) {
-                return order[first.itemType] - order[second.itemType];
-            }
-
-            return second.amount - first.amount;
-        });
-
-        const visibleItems = calendarItems.slice(0, 3);
-        const hiddenCount = calendarItems.length - visibleItems.length;
-
-        const itemsHtml = visibleItems.map(function (item) {
-            return calendarItemHtml(item);
-        }).join('');
-
-        const moreHtml = hiddenCount > 0
-            ? (
-                '<button type="button" class="calendar-more-payments" ' +
-                    'onclick="showDayItems(\'' + key + '\')">' +
-                    '+ ' + hiddenCount + ' autre' +
-                    (hiddenCount > 1 ? 's' : '') +
-                '</button>'
-            )
-            : '';
-
-        const dayIncome = sumByType(calendarItems, 'income');
-        const dayExpenses =
-            sumByType(calendarItems, 'payment') +
-            sumByType(calendarItems, 'planned') +
-            sumByType(calendarItems, 'debt');
-
-        const dayTotalHtml = calendarItems.length > 0
-            ? (
-                '<div class="calendar-day-total">' +
-                    'Solde : ' +
-                    compactMoney(dayIncome - dayExpenses) +
-                '</div>'
-            )
-            : '';
-
-        const todayClass = sameDate(
-            new Date(year, month, day),
-            new Date()
-        ) ? 'today' : '';
-
-        const itemsClass = calendarItems.length > 0 ? 'has-payments' : '';
+        const visible = items.slice(0, 3);
+        const hidden = items.length - visible.length;
 
         cells.push(
-            '<div class="calendar-day ' + todayClass + ' ' + itemsClass + '">' +
+            '<div class="calendar-day">' +
                 '<div class="calendar-day-number">' + day + '</div>' +
-                itemsHtml +
-                moreHtml +
-                dayTotalHtml +
+                visible.map(calendarItem).join('') +
+                (hidden > 0
+                    ? '<div class="calendar-more">+' + hidden + ' autre(s)</div>'
+                    : '') +
             '</div>'
         );
     }
 
-    const missingCells = cells.length % 7 === 0
+    const remaining = cells.length % 7 === 0
         ? 0
         : 7 - (cells.length % 7);
 
-    for (let index = 0; index < missingCells; index += 1) {
-        cells.push('<div class="calendar-day empty-day"></div>');
+    for (let i = 0; i < remaining; i += 1) {
+        cells.push('<div class="calendar-day empty"></div>');
     }
 
-    grid.innerHTML = cells.join('');
+    document.getElementById('calendarGrid').innerHTML = cells.join('');
 }
 
-function pushCalendarItems(target, items, itemType) {
-    (items || []).forEach(function (item) {
-        target.push({
-            ...item,
-            itemType: itemType
-        });
-    });
-}
+function calendarItem(item) {
+    let extra = '';
 
-function calendarItemHtml(item) {
-    const className = item.itemType === 'income'
-        ? 'income-event'
-        : item.itemType === 'planned'
-            ? 'planned-event'
-            : item.itemType === 'debt'
-                ? 'debt-event'
-                : item.frequency;
-
-    const deleteFunction = item.itemType === 'income'
-        ? 'deleteIncome'
-        : item.itemType === 'planned'
-            ? 'deletePlannedExpense'
-            : item.itemType === 'debt'
-                ? 'deleteDebt'
-                : 'deletePayment';
-
-    const prefix = item.itemType === 'income' ? '+' : '-';
-
-    const debtCheckbox = item.itemType === 'debt'
-        ? (
-            '<label class="debt-calendar-check">' +
+    if (item.type === 'debt') {
+        extra =
+            '<label class="debt-check">' +
                 '<input type="checkbox" ' +
-                    (item.isCompleted ? 'checked ' : '') +
+                    (item.completed ? 'checked ' : '') +
                     'onchange="toggleDebtPayment(\'' +
-                    attribute(item.debtId) +
+                    escapeAttribute(item.debtId) +
                     '\', \'' +
-                    attribute(item.paymentDateKey) +
-                    '\', this.checked)">' +
-                'Payé' +
-            '</label>'
-        )
-        : '';
+                    escapeAttribute(item.dateKey) +
+                    '\', this.checked)"> payé' +
+            '</label>';
+    }
 
     return (
-        '<div class="calendar-payment ' + className + '">' +
-            '<div class="calendar-payment-top">' +
-                '<span class="calendar-payment-name">' +
-                    html(item.merchant || item.name) +
-                '</span>' +
-                '<button type="button" class="calendar-delete-button" ' +
-                    'onclick="' + deleteFunction + '(\'' +
-                    attribute(item.id) +
-                    '\')" title="Supprimer">×</button>' +
-            '</div>' +
-            '<span class="calendar-payment-amount">' +
-                prefix + compactMoney(item.amount) +
+        '<div class="calendar-item ' + item.type + '">' +
+            '<strong>' + escapeHtml(item.name) + '</strong>' +
+            '<span>' +
+                (item.type === 'income' ? '+' : '-') +
+                money(item.amount) +
             '</span>' +
-            debtCheckbox +
+            extra +
         '</div>'
-    );
-}
-
-function sumByType(items, type) {
-    return items
-        .filter(function (item) {
-            return item.itemType === type;
-        })
-        .reduce(function (sum, item) {
-            return sum + item.amount;
-        }, 0);
-}
-
-function showDayItems(key) {
-    const parts = key.split('-').map(Number);
-    const year = parts[0];
-    const month = parts[1] - 1;
-
-    const incomes = itemsForMonth(AppState.incomes, year, month)[key] || [];
-    const payments = itemsForMonth(AppState.payments, year, month)[key] || [];
-    const planned = itemsForMonth(AppState.plannedExpenses, year, month)[key] || [];
-    const debts = debtItemsForMonth(year, month)[key] || [];
-
-    const lines = [];
-
-    incomes.forEach(function (item) {
-        lines.push('• Revenu : ' + item.merchant + ' — +' + money(item.amount));
-    });
-
-    payments.forEach(function (item) {
-        lines.push('• Paiement : ' + item.merchant + ' — -' + money(item.amount));
-    });
-
-    planned.forEach(function (item) {
-        lines.push('• À prévoir : ' + item.merchant + ' — -' + money(item.amount));
-    });
-
-    debts.forEach(function (item) {
-        lines.push(
-            '• Dette : ' +
-            item.merchant +
-            ' — -' +
-            money(item.amount) +
-            (item.isCompleted ? ' (effectué)' : ' (non effectué)')
-        );
-    });
-
-    alert(
-        dateLabel(key) +
-        '\n\n' +
-        lines.join('\n')
     );
 }
 
 function renderIncomes() {
     const container = document.getElementById('incomesList');
 
-    if (AppState.incomes.length === 0) {
-        container.innerHTML =
-            '<p class="empty-state">Aucun revenu pour le moment.</p>';
-        return;
-    }
-
-    container.innerHTML = renderGenericHistory(
-        AppState.incomes,
-        'income',
-        'deleteIncome'
-    );
+    container.innerHTML = State.incomes.length
+        ? State.incomes.map(function (item) {
+            return listRow(item, 'income', 'deleteIncome');
+        }).join('')
+        : '<p class="empty-state">Aucun revenu.</p>';
 }
 
 function renderPayments() {
-    const container = document.getElementById('transactionsList');
+    const container = document.getElementById('paymentsList');
 
-    if (AppState.payments.length === 0) {
-        container.innerHTML =
-            '<p class="empty-state">Aucun paiement pour le moment.</p>';
-        return;
-    }
+    container.innerHTML = State.payments.length
+        ? State.payments.map(function (item) {
+            return listRow(item, 'payment', 'deletePayment');
+        }).join('')
+        : '<p class="empty-state">Aucun paiement.</p>';
+}
 
-    container.innerHTML = renderGenericHistory(
-        AppState.payments,
-        'payment',
-        'deletePayment'
+function listRow(item, type, deleteFunction) {
+    return (
+        '<div class="list-row">' +
+            '<div>' +
+                '<strong>' + escapeHtml(item.name) + '</strong>' +
+                '<small>' +
+                    dateLabel(item.date) +
+                    ' • ' +
+                    frequencyName(item.frequency) +
+                '</small>' +
+            '</div>' +
+            '<div class="actions">' +
+                '<b class="' + type + '-amount">' +
+                    (type === 'income' ? '+' : '-') +
+                    money(item.amount) +
+                '</b>' +
+                '<button onclick="' + deleteFunction + '(\'' +
+                    escapeAttribute(item.id) +
+                    '\')">Supprimer</button>' +
+            '</div>' +
+        '</div>'
     );
 }
 
-function renderPlannedExpenses() {
-    const container = document.getElementById('plannedList');
+function renderGoals() {
+    const container = document.getElementById('goalsList');
 
-    if (AppState.plannedExpenses.length === 0) {
-        container.innerHTML =
-            '<p class="empty-state">Aucune dépense prévue pour le moment.</p>';
+    if (!State.goals.length) {
+        container.innerHTML = '<p class="empty-state">Aucun objectif.</p>';
         return;
     }
 
-    container.innerHTML = renderGenericHistory(
-        AppState.plannedExpenses,
-        'planned',
-        'deletePlannedExpense'
-    );
-}
+    container.innerHTML = State.goals.map(function (goal) {
+        const saved = goalSaved(goal);
+        const remaining = Math.max(0, goal.amount - saved);
+        const progress = percentage(saved, goal.amount);
 
-function renderGenericHistory(items, type, deleteFunction) {
-    const sorted = [...items].sort(function (first, second) {
-        return dateFromString(first.date) - dateFromString(second.date);
-    });
-
-    return sorted.map(function (item) {
-        const amountClass = type === 'income'
-            ? 'income-amount'
-            : 'transaction-amount';
-
-        const prefix = type === 'income' ? '+' : '-';
-
-        const details = type === 'income'
-            ? dateLabel(item.date) + ' • ' + frequencyName(item.frequency)
-            : dateLabel(item.date) +
-                ' • ' +
-                categoryIcon(item.category) +
-                ' ' +
-                categoryName(item.category) +
-                ' • ' +
-                frequencyName(item.frequency);
+        const savings = goal.savings.length
+            ? goal.savings.map(function (saving) {
+                return (
+                    '<div class="saving-row">' +
+                        '<span>' + dateLabel(saving.date) +
+                            ' : +' + money(saving.amount) +
+                        '</span>' +
+                        '<button onclick="deleteGoalSaving(\'' +
+                            escapeAttribute(goal.id) +
+                            '\', \'' +
+                            escapeAttribute(saving.id) +
+                            '\')">Retirer</button>' +
+                    '</div>'
+                );
+            }).join('')
+            : '<p class="empty-saving">Aucune mise de côté.</p>';
 
         return (
-            '<div class="transaction-item">' +
-                '<div class="transaction-info">' +
-                    '<div class="transaction-merchant">' +
-                        html(item.merchant) +
-                    '</div>' +
-                    '<div class="transaction-meta">' +
-                        details +
-                    '</div>' +
-                '</div>' +
-                '<div class="transaction-actions">' +
-                    '<div class="' + amountClass + '">' +
-                        prefix + money(item.amount) +
-                    '</div>' +
-                    '<button type="button" class="delete-transaction-button" ' +
-                        'onclick="' + deleteFunction + '(\'' +
-                        attribute(item.id) +
+            '<div class="goal-card">' +
+                '<div class="goal-header">' +
+                    '<div><strong>' + escapeHtml(goal.name) + '</strong>' +
+                    '<small>Date objectif : ' + dateLabel(goal.date) + '</small></div>' +
+                    '<button onclick="deleteGoal(\'' +
+                        escapeAttribute(goal.id) +
                         '\')">Supprimer</button>' +
                 '</div>' +
+                '<div class="goal-values">' +
+                    '<span>Objectif : <b>' + money(goal.amount) + '</b></span>' +
+                    '<span>Épargné : <b class="green">' + money(saved) + '</b></span>' +
+                    '<span>Reste : <b>' + money(remaining) + '</b></span>' +
+                '</div>' +
+                '<div class="goal-bar"><div style="width:' +
+                    progress +
+                    '%"></div></div>' +
+                '<p class="goal-status">' +
+                    (progress >= 100
+                        ? '✅ Objectif atteint'
+                        : progress + '% épargné') +
+                '</p>' +
+                '<button class="btn btn-goal" onclick="addGoalSaving(\'' +
+                    escapeAttribute(goal.id) +
+                    '\')">💰 Ajouter un montant épargné</button>' +
+                '<details><summary>Voir les mises de côté</summary>' +
+                    savings +
+                '</details>' +
             '</div>'
         );
     }).join('');
@@ -785,352 +656,130 @@ function renderGenericHistory(items, type, deleteFunction) {
 function renderDebts() {
     const container = document.getElementById('debtsList');
 
-    if (AppState.debts.length === 0) {
-        container.innerHTML =
-            '<p class="empty-state">Aucune dette pour le moment.</p>';
+    if (!State.debts.length) {
+        container.innerHTML = '<p class="empty-state">Aucune dette.</p>';
         return;
     }
 
-    const today = endOfToday();
+    container.innerHTML = State.debts.map(function (debt) {
+        const paid = debtPaid(debt);
+        const remaining = Math.max(0, debt.totalAmount - paid);
+        const progress = percentage(paid, debt.totalAmount);
 
-    container.innerHTML = AppState.debts.map(function (debt) {
-        const allOccurrences = debtPaymentOccurrences(
+        const occurrences = debtOccurrences(
             debt,
             dateFromString(debt.paymentDate),
-            futureDate()
+            addYears(new Date(), 5)
         );
 
-        const paidAmount = allOccurrences
-            .filter(function (occurrence) {
-                return occurrence.isCompleted;
-            })
-            .reduce(function (sum, occurrence) {
-                return sum + occurrence.amount;
-            }, 0);
-
-        const remaining = Math.max(0, debt.totalAmount - paidAmount);
-        const progress = debt.totalAmount > 0
-            ? Math.min(Math.round((paidAmount / debt.totalAmount) * 100), 100)
-            : 0;
-
-        const nextPayment = allOccurrences.find(function (occurrence) {
-            return !occurrence.isCompleted && occurrence.date > today;
-        });
-
-        const paymentRows = allOccurrences
-            .filter(function (occurrence) {
-                return occurrence.date <= futureDate();
-            })
-            .slice(0, 50)
-            .map(function (occurrence) {
-                return (
-                    '<label class="debt-payment-row">' +
-                        '<input type="checkbox" ' +
-                            (occurrence.isCompleted ? 'checked ' : '') +
-                            'onchange="toggleDebtPayment(\'' +
-                            attribute(debt.id) +
-                            '\', \'' +
-                            attribute(occurrence.paymentDateKey) +
-                            '\', this.checked)">' +
-                        '<span>' +
-                            html(dateLabel(occurrence.paymentDateKey)) +
-                            ' — ' +
-                            html(money(occurrence.amount)) +
-                        '</span>' +
-                        '<small>' +
-                            (occurrence.isAutomatic
-                                ? 'Automatique selon la date'
-                                : occurrence.isCompleted
-                                    ? 'Confirmé manuellement'
-                                    : 'Décoché manuellement') +
-                        '</small>' +
-                    '</label>'
-                );
-            }).join('');
-
         return (
-            '<div class="debt-item">' +
-                '<div class="debt-item-header">' +
-                    '<strong>' + html(debt.name) + '</strong>' +
-                    '<button type="button" class="delete-transaction-button" ' +
-                        'onclick="deleteDebt(\'' +
-                        attribute(debt.id) +
+            '<div class="debt-card">' +
+                '<div class="goal-header">' +
+                    '<strong>' + escapeHtml(debt.name) + '</strong>' +
+                    '<button onclick="deleteDebt(\'' +
+                        escapeAttribute(debt.id) +
                         '\')">Supprimer</button>' +
                 '</div>' +
                 '<p>Total initial : ' + money(debt.totalAmount) + '</p>' +
-                '<p>Montant effectué : ' + money(paidAmount) + '</p>' +
-                '<p class="debt-remaining">Solde restant : ' + money(remaining) + '</p>' +
-                '<p>Paiement prévu : ' + money(debt.paymentAmount) + ' • ' +
-                    frequencyName(debt.frequency) + '</p>' +
-                '<p>Prochain paiement : ' +
-                    (nextPayment
-                        ? dateLabel(nextPayment.paymentDateKey)
-                        : 'Dette terminée ou aucun paiement futur') +
-                '</p>' +
-                '<div class="debt-progress-bar">' +
-                    '<div class="debt-progress-fill" style="width: ' +
-                        progress +
-                        '%"></div>' +
-                '</div>' +
-                '<p class="debt-progress-text">' + progress + '% remboursé</p>' +
-                '<details class="debt-payment-details">' +
-                    '<summary>Voir et modifier les paiements de cette dette</summary>' +
-                    '<div class="debt-payment-list">' +
-                        paymentRows +
-                    '</div>' +
+                '<p>Payé : ' + money(paid) + '</p>' +
+                '<p><b>Solde : ' + money(remaining) + '</b></p>' +
+                '<div class="goal-bar debt-bar"><div style="width:' +
+                    progress +
+                    '%"></div></div>' +
+                '<p>' + progress + '% remboursé</p>' +
+                '<details><summary>Voir les paiements</summary>' +
+                occurrences.slice(0, 40).map(function (item) {
+                    return (
+                        '<label class="debt-row">' +
+                            '<input type="checkbox" ' +
+                                (item.completed ? 'checked ' : '') +
+                                'onchange="toggleDebtPayment(\'' +
+                                escapeAttribute(debt.id) +
+                                '\', \'' +
+                                escapeAttribute(item.dateKey) +
+                                '\', this.checked)">' +
+                            '<span>' + dateLabel(item.dateKey) +
+                                ' — ' + money(item.amount) +
+                            '</span>' +
+                        '</label>'
+                    );
+                }).join('') +
                 '</details>' +
             '</div>'
         );
     }).join('');
 }
 
-function renderCategoryStats() {
+function renderCategories() {
     const container = document.getElementById('categoryStats');
     const now = new Date();
     const totals = {};
 
-    const allExpenseItems = [
-        ...AppState.payments,
-        ...AppState.plannedExpenses
-    ];
-
-    allExpenseItems.forEach(function (item) {
-        const count = occurrenceCountForItem(
-            item,
+    State.payments.forEach(function (item) {
+        const count = occurrenceDates(
+            item.date,
+            item.frequency,
             startOfMonth(now),
             endOfMonth(now)
-        );
-
-        if (count <= 0) {
-            return;
-        }
+        ).length;
 
         totals[item.category] =
             (totals[item.category] || 0) +
             item.amount * count;
     });
 
-    const total = Object.values(totals).reduce(function (sum, amount) {
-        return sum + amount;
-    }, 0);
+    const entries = Object.entries(totals);
 
-    if (total <= 0) {
-        container.innerHTML =
-            '<p class="empty-state">Aucune dépense pour le mois actuel.</p>';
-        return;
-    }
-
-    container.innerHTML = Object.entries(totals)
-        .sort(function (first, second) {
-            return second[1] - first[1];
-        })
-        .map(function (entry) {
-            const category = entry[0];
-            const amount = entry[1];
-            const categoryPercent = Math.round((amount / total) * 100);
-
+    container.innerHTML = entries.length
+        ? entries.map(function (entry) {
             return (
                 '<div class="category-stat">' +
-                    '<div class="icon">' + categoryIcon(category) + '</div>' +
-                    '<div class="name">' + categoryName(category) + '</div>' +
-                    '<div class="amount">' + money(amount) + '</div>' +
-                    '<div class="percent">' + categoryPercent + '% du mois</div>' +
+                    '<div>' + categoryIcon(entry[0]) + '</div>' +
+                    '<strong>' + categoryName(entry[0]) + '</strong>' +
+                    '<span>' + money(entry[1]) + '</span>' +
                 '</div>'
             );
-        })
-        .join('');
+        }).join('')
+        : '<p class="empty-state">Aucune dépense ce mois.</p>';
 }
 
 function exportCalendarOnly() {
-    const year = AppState.calendarDate.getFullYear();
-    const month = AppState.calendarDate.getMonth();
-    const monthStart = new Date(year, month, 1, 12, 0, 0, 0);
+    const year = State.calendarDate.getFullYear();
+    const month = State.calendarDate.getMonth();
+    const incomeMap = recurringMap(State.incomes, year, month, 'income');
+    const paymentMap = recurringMap(State.payments, year, month, 'payment');
+    const debtMap = debtMapForMonth(year, month);
 
-    const incomesByDay = itemsForMonth(AppState.incomes, year, month);
-    const paymentsByDay = itemsForMonth(AppState.payments, year, month);
-    const plannedByDay = itemsForMonth(AppState.plannedExpenses, year, month);
-    const debtsByDay = debtItemsForMonth(year, month);
-
-    const totalItems =
-        totalByDay(incomesByDay) +
-        totalByDay(paymentsByDay) +
-        totalByDay(plannedByDay) +
-        totalByDay(debtsByDay);
-
-    if (totalItems <= 0) {
-        alert('Aucun revenu, paiement ou dette à exporter pour ce mois.');
-        return;
-    }
-
-    const reportCalendar = buildPrintableCalendar(
+    const calendar = printableCalendar(
         year,
         month,
-        incomesByDay,
-        paymentsByDay,
-        plannedByDay,
-        debtsByDay
+        incomeMap,
+        paymentMap,
+        debtMap
     );
 
-    const report = (
-        '<!DOCTYPE html>' +
-        '<html lang="fr-CA">' +
-        '<head>' +
-            '<meta charset="UTF-8">' +
-            '<title>Calendrier - ' + html(monthTitle(monthStart)) + '</title>' +
-            '<style>' +
-                '* { box-sizing: border-box; }' +
-                'body { color: #111827; font-family: Arial, sans-serif; margin: 0; padding: 20px; }' +
-                'h1 { color: #312E81; margin: 0; }' +
-                'p { color: #4B5563; }' +
-                '.print { background: #0F766E; border: none; border-radius: 6px; color: white; cursor: pointer; font-size: 16px; font-weight: 700; margin: 15px 0; padding: 12px 18px; }' +
-                '.calendar { border-left: 1px solid #9CA3AF; border-top: 1px solid #9CA3AF; display: grid; grid-template-columns: repeat(7, 1fr); }' +
-                '.weekday { background: #EDE9FE; border-bottom: 1px solid #9CA3AF; border-right: 1px solid #9CA3AF; font-size: 12px; font-weight: 700; padding: 8px 4px; text-align: center; }' +
-                '.day { border-bottom: 1px solid #9CA3AF; border-right: 1px solid #9CA3AF; min-height: 125px; padding: 5px; }' +
-                '.empty-day { background: #F9FAFB; }' +
-                '.day-number { font-weight: 700; margin-bottom: 4px; }' +
-                '.item { border-left: 4px solid #6B7280; border-radius: 3px; font-size: 10px; margin-bottom: 3px; padding: 3px; word-break: break-word; }' +
-                '.income { background: #D1FAE5; border-left-color: #047857; }' +
-                '.payment { background: #E0E7FF; border-left-color: #4F46E5; }' +
-                '.planned { background: #FFEDD5; border-left-color: #EA580C; }' +
-                '.debt { background: #FEE2E2; border-left-color: #DC2626; }' +
-                '.total { font-size: 10px; font-weight: 700; margin-top: 4px; }' +
-                '@media print { body { padding: 8mm; } .print { display: none; } @page { margin: 8mm; size: landscape; } }' +
-            '</style>' +
-        '</head>' +
-        '<body>' +
-            '<h1>Budget Automatisé</h1>' +
-            '<p>Calendrier — ' + html(monthTitle(monthStart)) + '</p>' +
-            '<button class="print" onclick="window.print()">🖨️ Imprimer ou enregistrer en PDF</button>' +
-            reportCalendar +
-        '</body>' +
-        '</html>'
-    );
+    const content =
+        '<!DOCTYPE html><html><head><meta charset="UTF-8">' +
+        '<title>Calendrier</title><style>' +
+        'body{font-family:Arial;padding:20px}.print{background:#0f766e;color:#fff;border:0;padding:12px;border-radius:6px}.calendar{display:grid;grid-template-columns:repeat(7,1fr);border-top:1px solid #999;border-left:1px solid #999}.day,.week{border-right:1px solid #999;border-bottom:1px solid #999;padding:5px;min-height:120px}.week{background:#eee;text-align:center;font-weight:bold}.event{font-size:10px;margin:3px 0;padding:3px;border-left:4px solid #777}.income{background:#d1fae5;border-color:#047857}.payment{background:#e0e7ff;border-color:#4f46e5}.debt{background:#fee2e2;border-color:#dc2626}@media print{.print{display:none}@page{size:landscape;margin:8mm}}' +
+        '</style></head><body><h1>Budget Automatisé</h1>' +
+        '<button class="print" onclick="window.print()">Imprimer / PDF</button>' +
+        calendar +
+        '</body></html>';
 
-    downloadHtmlFile(
-        report,
-        'budget-calendrier-' +
-        year +
-        '-' +
-        String(month + 1).padStart(2, '0') +
-        '.html'
-    );
-}
-
-function buildPrintableCalendar(
-    year,
-    month,
-    incomesByDay,
-    paymentsByDay,
-    plannedByDay,
-    debtsByDay
-) {
-    const start = new Date(year, month, 1, 12, 0, 0, 0);
-    const end = new Date(year, month + 1, 0, 12, 0, 0, 0);
-    const weekdays = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
-
-    let output = '<div class="calendar">';
-
-    weekdays.forEach(function (weekday) {
-        output += '<div class="weekday">' + weekday + '</div>';
+    const blob = new Blob([content], {
+        type: 'text/html;charset=utf-8'
     });
-
-    const firstWeekday = mondayWeekday(start);
-
-    for (let index = 0; index < firstWeekday; index += 1) {
-        output += '<div class="day empty-day"></div>';
-    }
-
-    for (let day = 1; day <= end.getDate(); day += 1) {
-        const key = dateKey(year, month, day);
-        const items = [];
-
-        pushPrintItems(items, incomesByDay[key], 'income', '+');
-        pushPrintItems(items, paymentsByDay[key], 'payment', '-');
-        pushPrintItems(items, plannedByDay[key], 'planned', '-');
-        pushPrintItems(items, debtsByDay[key], 'debt', '-');
-
-        const itemHtml = items.map(function (item) {
-            return (
-                '<div class="item ' + item.type + '">' +
-                    '<strong>' + html(item.name) + '</strong><br>' +
-                    item.prefix + html(money(item.amount)) +
-                    (item.type === 'debt'
-                        ? '<br><small>' +
-                            (item.isCompleted ? 'Effectué' : 'À confirmer') +
-                          '</small>'
-                        : '') +
-                '</div>'
-            );
-        }).join('');
-
-        const totalIncome = items
-            .filter(function (item) {
-                return item.type === 'income';
-            })
-            .reduce(function (sum, item) {
-                return sum + item.amount;
-            }, 0);
-
-        const totalExpenses = items
-            .filter(function (item) {
-                return item.type !== 'income';
-            })
-            .reduce(function (sum, item) {
-                return sum + item.amount;
-            }, 0);
-
-        const totalHtml = items.length > 0
-            ? '<div class="total">Solde : ' +
-                html(money(totalIncome - totalExpenses)) +
-              '</div>'
-            : '';
-
-        output += (
-            '<div class="day">' +
-                '<div class="day-number">' + day + '</div>' +
-                itemHtml +
-                totalHtml +
-            '</div>'
-        );
-    }
-
-    const usedCells = firstWeekday + end.getDate();
-    const missingCells = usedCells % 7 === 0
-        ? 0
-        : 7 - (usedCells % 7);
-
-    for (let index = 0; index < missingCells; index += 1) {
-        output += '<div class="day empty-day"></div>';
-    }
-
-    output += '</div>';
-
-    return output;
-}
-
-function pushPrintItems(target, items, type, prefix) {
-    (items || []).forEach(function (item) {
-        target.push({
-            name: item.merchant || item.name,
-            amount: item.amount,
-            type: type,
-            prefix: prefix,
-            isCompleted: item.isCompleted
-        });
-    });
-}
-
-function downloadHtmlFile(content, filename) {
-    const blob = new Blob(
-        [content],
-        { type: 'text/html;charset=utf-8' }
-    );
 
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
 
     link.href = url;
-    link.download = filename;
+    link.download =
+        'budget-calendrier-' +
+        year + '-' +
+        String(month + 1).padStart(2, '0') +
+        '.html';
 
     document.body.appendChild(link);
     link.click();
@@ -1139,135 +788,197 @@ function downloadHtmlFile(content, filename) {
     setTimeout(function () {
         URL.revokeObjectURL(url);
     }, 1000);
-
-    alert(
-        'Le calendrier imprimable a été téléchargé. Ouvrez le fichier HTML dans vos téléchargements, puis imprimez-le ou enregistrez-le en PDF.'
-    );
 }
 
-function debtItemsForMonth(year, month) {
-    const start = new Date(year, month, 1, 12, 0, 0, 0);
-    const end = new Date(year, month + 1, 0, 12, 0, 0, 0);
-    const byDay = {};
+function printableCalendar(year, month, incomeMap, paymentMap, debtMap) {
+    const start = new Date(year, month, 1);
+    const days = new Date(year, month + 1, 0).getDate();
+    const names = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
 
-    AppState.debts.forEach(function (debt) {
-        debtPaymentOccurrences(debt, start, end).forEach(function (occurrence) {
-            const key = occurrence.paymentDateKey;
+    let output = '<div class="calendar">';
 
-            if (!byDay[key]) {
-                byDay[key] = [];
+    names.forEach(function (name) {
+        output += '<div class="week">' + name + '</div>';
+    });
+
+    for (let i = 0; i < mondayWeekday(start); i += 1) {
+        output += '<div class="day"></div>';
+    }
+
+    for (let day = 1; day <= days; day += 1) {
+        const key = dateKey(year, month, day);
+        const items = []
+            .concat(incomeMap[key] || [])
+            .concat(paymentMap[key] || [])
+            .concat(debtMap[key] || []);
+
+        output += '<div class="day"><b>' + day + '</b>';
+
+        items.forEach(function (item) {
+            output +=
+                '<div class="event ' + item.type + '">' +
+                escapeHtml(item.name) +
+                '<br>' +
+                (item.type === 'income' ? '+' : '-') +
+                escapeHtml(money(item.amount)) +
+                '</div>';
+        });
+
+        output += '</div>';
+    }
+
+    const used = mondayWeekday(start) + days;
+    const remaining = used % 7 === 0 ? 0 : 7 - (used % 7);
+
+    for (let i = 0; i < remaining; i += 1) {
+        output += '<div class="day"></div>';
+    }
+
+    return output + '</div>';
+}
+
+function recurringMap(items, year, month, type) {
+    const map = {};
+    const start = new Date(year, month, 1);
+    const end = endOfMonth(start);
+
+    items.forEach(function (item) {
+        occurrenceDates(item.date, item.frequency, start, end)
+            .forEach(function (date) {
+                const key = localDateString(date);
+
+                if (!map[key]) {
+                    map[key] = [];
+                }
+
+                map[key].push({
+                    type: type,
+                    name: item.name,
+                    amount: item.amount
+                });
+            });
+    });
+
+    return map;
+}
+
+function debtMapForMonth(year, month) {
+    const map = {};
+    const start = new Date(year, month, 1);
+    const end = endOfMonth(start);
+
+    State.debts.forEach(function (debt) {
+        debtOccurrences(debt, start, end).forEach(function (item) {
+            if (!map[item.dateKey]) {
+                map[item.dateKey] = [];
             }
 
-            byDay[key].push({
-                id: debt.id,
+            map[item.dateKey].push({
+                type: 'debt',
+                name: debt.name,
+                amount: item.amount,
                 debtId: debt.id,
-                merchant: debt.name,
-                amount: occurrence.amount,
-                category: 'debt',
-                date: key,
-                frequency: debt.frequency,
-                paymentDateKey: key,
-                isCompleted: occurrence.isCompleted,
-                isAutomatic: occurrence.isAutomatic
+                dateKey: item.dateKey,
+                completed: item.completed
             });
         });
     });
 
-    return byDay;
+    return map;
 }
 
-function confirmedDebtPaymentsInPeriod(start, end) {
-    return AppState.debts.reduce(function (sum, debt) {
-        return sum + debtPaymentOccurrences(debt, start, end)
-            .filter(function (occurrence) {
-                return occurrence.isCompleted;
+function totalRecurring(items, start, end) {
+    return items.reduce(function (sum, item) {
+        return sum + item.amount *
+            occurrenceDates(item.date, item.frequency, start, end).length;
+    }, 0);
+}
+
+function countRecurring(items, start, end) {
+    return items.reduce(function (count, item) {
+        return count +
+            occurrenceDates(item.date, item.frequency, start, end).length;
+    }, 0);
+}
+
+function totalConfirmedDebt(start, end) {
+    return State.debts.reduce(function (sum, debt) {
+        return sum + debtOccurrences(debt, start, end)
+            .filter(function (item) {
+                return item.completed;
             })
-            .reduce(function (paymentSum, occurrence) {
-                return paymentSum + occurrence.amount;
+            .reduce(function (debtSum, item) {
+                return debtSum + item.amount;
             }, 0);
     }, 0);
 }
 
-function debtPaymentOccurrences(debt, start, end) {
-    const debtStart = dateFromString(debt.paymentDate);
-
-    if (!debtStart || debtStart > end) {
-        return [];
-    }
-
-    const dates = recurringDates(
-        debtStart,
+function debtOccurrences(debt, start, end) {
+    const dates = occurrenceDates(
+        debt.paymentDate,
         debt.frequency,
         start,
         end
     );
 
-    let paidBeforePeriod = debtConfirmedAmountBefore(debt, start);
-    const occurrences = [];
+    const output = [];
+    let alreadyPaid = paidBefore(debt, start);
 
     dates.forEach(function (date) {
-        const remainingBeforePayment = debt.totalAmount - paidBeforePeriod;
+        const amount = Math.min(
+            debt.paymentAmount,
+            Math.max(0, debt.totalAmount - alreadyPaid)
+        );
 
-        if (remainingBeforePayment <= 0) {
+        if (amount <= 0) {
             return;
         }
 
-        const paymentDateKey = localDateString(date);
-        const status = debtPaymentStatus(
-            debt,
-            paymentDateKey,
-            date
-        );
+        const dateKey = localDateString(date);
+        const status = debtStatus(debt, dateKey, date);
 
-        const amount = Math.min(
-            debt.paymentAmount,
-            remainingBeforePayment
-        );
-
-        occurrences.push({
-            date: date,
-            paymentDateKey: paymentDateKey,
+        output.push({
+            dateKey: dateKey,
             amount: amount,
-            isCompleted: status.isCompleted,
-            isAutomatic: status.isAutomatic
+            completed: status.completed,
+            automatic: status.automatic
         });
 
-        if (status.isCompleted) {
-            paidBeforePeriod += amount;
+        if (status.completed) {
+            alreadyPaid += amount;
         }
     });
 
-    return occurrences;
+    return output;
 }
 
-function debtConfirmedAmountBefore(debt, beforeDate) {
+function paidBefore(debt, before) {
     const start = dateFromString(debt.paymentDate);
 
-    if (!start || start >= beforeDate) {
+    if (!start || start >= before) {
         return 0;
     }
 
-    const dayBefore = new Date(beforeDate);
-    dayBefore.setDate(dayBefore.getDate() - 1);
-    dayBefore.setHours(23, 59, 59, 999);
+    const end = new Date(before);
+    end.setDate(end.getDate() - 1);
 
-    const dates = recurringDates(
-        start,
+    const dates = occurrenceDates(
+        debt.paymentDate,
         debt.frequency,
         start,
-        dayBefore
+        end
     );
 
     let paid = 0;
 
     dates.forEach(function (date) {
         const key = localDateString(date);
-        const status = debtPaymentStatus(debt, key, date);
+        const status = debtStatus(debt, key, date);
 
-        if (status.isCompleted) {
+        if (status.completed) {
             paid += Math.min(
                 debt.paymentAmount,
-                Math.max(0, debt.totalAmount - paid)
+                debt.totalAmount - paid
             );
         }
     });
@@ -1275,38 +986,43 @@ function debtConfirmedAmountBefore(debt, beforeDate) {
     return paid;
 }
 
-function debtPaymentStatus(debt, paymentDateKey, date) {
-    const completedPayments = debt.completedPayments || {};
+function debtPaid(debt) {
+    const start = dateFromString(debt.paymentDate);
+    const end = addYears(new Date(), 5);
 
-    if (completedPayments[paymentDateKey] === true) {
-        return {
-            isCompleted: true,
-            isAutomatic: false
-        };
+    return debtOccurrences(debt, start, end)
+        .filter(function (item) {
+            return item.completed;
+        })
+        .reduce(function (sum, item) {
+            return sum + item.amount;
+        }, 0);
+}
+
+function debtStatus(debt, key, date) {
+    if (debt.completedPayments[key] === true) {
+        return { completed: true, automatic: false };
     }
 
-    if (completedPayments[paymentDateKey] === false) {
-        return {
-            isCompleted: false,
-            isAutomatic: false
-        };
+    if (debt.completedPayments[key] === false) {
+        return { completed: false, automatic: false };
     }
 
     return {
-        isCompleted: endOfDay(date) < new Date(),
-        isAutomatic: true
+        completed: endOfDay(date) < new Date(),
+        automatic: true
     };
 }
 
-function recurringDates(startDate, frequency, periodStart, periodEnd) {
-    if (startDate > periodEnd) {
+function occurrenceDates(dateString, frequency, start, end) {
+    const first = dateFromString(dateString);
+
+    if (!first || first > end) {
         return [];
     }
 
     if (frequency === 'one-time') {
-        return startDate >= periodStart && startDate <= periodEnd
-            ? [new Date(startDate)]
-            : [];
+        return first >= start && first <= end ? [first] : [];
     }
 
     const interval = frequency === 'weekly'
@@ -1315,15 +1031,15 @@ function recurringDates(startDate, frequency, periodStart, periodEnd) {
             ? 14
             : 0;
 
-    if (interval > 0) {
-        const current = new Date(startDate);
+    if (interval) {
+        const current = new Date(first);
         const dates = [];
 
-        while (current < periodStart) {
+        while (current < start) {
             current.setDate(current.getDate() + interval);
         }
 
-        while (current <= periodEnd) {
+        while (current <= end) {
             dates.push(new Date(current));
             current.setDate(current.getDate() + interval);
         }
@@ -1332,150 +1048,55 @@ function recurringDates(startDate, frequency, periodStart, periodEnd) {
     }
 
     if (frequency === 'monthly') {
-        return monthlyDates(startDate, periodStart, periodEnd);
+        const dates = [];
+        let current = new Date(first);
+
+        while (current < start) {
+            current = nextMonth(current, first.getDate());
+        }
+
+        while (current <= end) {
+            dates.push(new Date(current));
+            current = nextMonth(current, first.getDate());
+        }
+
+        return dates;
     }
 
     return [];
 }
 
-function itemsForMonth(items, year, month) {
-    const start = new Date(year, month, 1, 12, 0, 0, 0);
-    const end = new Date(year, month + 1, 0, 12, 0, 0, 0);
-    const byDay = {};
+function nextMonth(date, day) {
+    const next = date.getMonth() + 1;
+    const year = date.getFullYear() + Math.floor(next / 12);
+    const month = next % 12;
+    const last = new Date(year, month + 1, 0).getDate();
 
-    items.forEach(function (item) {
-        occurrenceDatesForItem(item, start, end).forEach(function (date) {
-            const key = dateKey(
-                date.getFullYear(),
-                date.getMonth(),
-                date.getDate()
-            );
-
-            if (!byDay[key]) {
-                byDay[key] = [];
-            }
-
-            byDay[key].push(item);
-        });
-    });
-
-    return byDay;
+    return new Date(year, month, Math.min(day, last));
 }
 
-function totalByDay(byDay) {
-    return Object.values(byDay)
-        .flat()
-        .reduce(function (sum, item) {
-            return sum + item.amount;
-        }, 0);
-}
-
-function amountInPeriod(items, start, end) {
-    return items.reduce(function (sum, item) {
-        return sum + item.amount * occurrenceCountForItem(
-            item,
-            start,
-            end
-        );
+function goalSaved(goal) {
+    return goal.savings.reduce(function (sum, saving) {
+        return sum + saving.amount;
     }, 0);
 }
 
-function occurrenceCountInPeriod(items, start, end) {
-    return items.reduce(function (count, item) {
-        return count + occurrenceCountForItem(item, start, end);
+function sum(items) {
+    return items.reduce(function (total, item) {
+        return total + item.amount;
     }, 0);
 }
 
-function occurrenceCountForItem(item, start, end) {
-    return occurrenceDatesForItem(item, start, end).length;
-}
-
-function occurrenceDatesForItem(item, start, end) {
-    const firstDate = dateFromString(item.date);
-
-    if (!firstDate) {
-        return [];
-    }
-
-    return recurringDates(
-        firstDate,
-        item.frequency,
-        start,
-        end
-    );
-}
-
-function monthlyDates(firstDate, start, end) {
-    let year = firstDate.getFullYear();
-    let month = firstDate.getMonth();
-    const day = firstDate.getDate();
-
-    let current = monthlyDate(year, month, day);
-
-    while (current < start) {
-        month += 1;
-
-        if (month > 11) {
-            month = 0;
-            year += 1;
-        }
-
-        current = monthlyDate(year, month, day);
-    }
-
-    const dates = [];
-
-    while (current <= end) {
-        if (current >= firstDate) {
-            dates.push(new Date(current));
-        }
-
-        month += 1;
-
-        if (month > 11) {
-            month = 0;
-            year += 1;
-        }
-
-        current = monthlyDate(year, month, day);
-    }
-
-    return dates;
-}
-
-function monthlyDate(year, month, day) {
-    const lastDay = new Date(year, month + 1, 0).getDate();
-
-    return new Date(
-        year,
-        month,
-        Math.min(day, lastDay),
-        12,
-        0,
-        0,
-        0
-    );
-}
-
-function getNumber(id) {
-    const input = document.getElementById(id);
-    return input ? Number.parseFloat(input.value) : NaN;
-}
-
-function getValue(id) {
+function readText(id) {
     const input = document.getElementById(id);
     return input ? input.value.trim() : '';
 }
 
-function setValue(id, value) {
-    const input = document.getElementById(id);
-
-    if (input) {
-        input.value = value;
-    }
+function readNumber(id) {
+    return Number.parseFloat(readText(id));
 }
 
-function clearInput(id) {
+function clear(id) {
     const input = document.getElementById(id);
 
     if (input) {
@@ -1483,91 +1104,53 @@ function clearInput(id) {
     }
 }
 
+function set(id, value) {
+    const element = document.getElementById(id);
+
+    if (element) {
+        element.textContent = value;
+    }
+}
+
+function positive(value) {
+    const number = Number(value);
+    return Number.isFinite(number) && number > 0 ? number : 0;
+}
+
 function isPositive(value) {
     return Number.isFinite(value) && value > 0;
 }
 
-function updateBar(id, value) {
-    const element = document.getElementById(id);
-
-    element.style.width = Math.min(value, 100) + '%';
-    element.className = 'progress-fill';
-
-    if (value >= 80) {
-        element.classList.add('danger');
-    } else if (value >= 50) {
-        element.classList.add('warning');
-    }
-}
-
-function updateRemaining(id, value) {
-    const element = document.getElementById(id);
-
-    element.textContent = 'Reste : ' + money(value);
-    element.className = value < 0
-        ? 'remaining negative'
-        : 'remaining';
-}
-
-function setText(id, text) {
-    const element = document.getElementById(id);
-
-    if (element) {
-        element.textContent = text;
-    }
-}
-
-function percent(spent, total) {
-    if (!Number.isFinite(total) || total <= 0) {
-        return 0;
-    }
-
-    return Math.min(Math.round((spent / total) * 100), 100);
+function validDate(value) {
+    return dateFromString(value)
+        ? value
+        : localDateString(new Date());
 }
 
 function validFrequency(value) {
-    const frequencies = [
-        'one-time',
-        'weekly',
-        'biweekly',
-        'monthly'
-    ];
-
-    return frequencies.includes(value) ? value : 'one-time';
+    return ['one-time', 'weekly', 'biweekly', 'monthly'].includes(value)
+        ? value
+        : 'one-time';
 }
 
 function validDebtFrequency(value) {
-    const frequencies = [
-        'weekly',
-        'biweekly',
-        'monthly'
-    ];
+    return ['weekly', 'biweekly', 'monthly'].includes(value)
+        ? value
+        : 'monthly';
+}
 
-    return frequencies.includes(value) ? value : 'monthly';
+function percentage(value, total) {
+    return total > 0
+        ? Math.min(Math.round((value / total) * 100), 100)
+        : 0;
 }
 
 function firstDayOfMonth(date) {
-    return new Date(
-        date.getFullYear(),
-        date.getMonth(),
-        1,
-        12,
-        0,
-        0,
-        0
-    );
+    return new Date(date.getFullYear(), date.getMonth(), 1);
 }
 
 function startOfMonth(date) {
-    return new Date(
-        date.getFullYear(),
-        date.getMonth(),
-        1,
-        0,
-        0,
-        0,
-        0
-    );
+    return new Date(date.getFullYear(), date.getMonth(), 1);
 }
 
 function endOfMonth(date) {
@@ -1577,32 +1160,20 @@ function endOfMonth(date) {
         0,
         23,
         59,
-        59,
-        999
+        59
     );
 }
 
 function startOfWeek(date) {
     const result = new Date(date);
-    const daysSinceMonday = (result.getDay() + 6) % 7;
-
-    result.setDate(result.getDate() - daysSinceMonday);
+    result.setDate(result.getDate() - ((result.getDay() + 6) % 7));
     result.setHours(0, 0, 0, 0);
-
     return result;
 }
 
 function endOfWeek(date) {
     const result = startOfWeek(date);
-
     result.setDate(result.getDate() + 6);
-    result.setHours(23, 59, 59, 999);
-
-    return result;
-}
-
-function endOfToday() {
-    const result = new Date();
     result.setHours(23, 59, 59, 999);
     return result;
 }
@@ -1613,46 +1184,22 @@ function endOfDay(date) {
     return result;
 }
 
-function futureDate() {
-    return new Date(
-        new Date().getFullYear() + 10,
-        11,
-        31,
-        23,
-        59,
-        59,
-        999
-    );
-}
-
 function mondayWeekday(date) {
     return (date.getDay() + 6) % 7;
 }
 
 function dateFromString(value) {
-    const parts = String(value).split('-').map(Number);
+    const parts = String(value || '').split('-').map(Number);
 
-    if (!parts[0] || !parts[1] || !parts[2]) {
-        return null;
-    }
-
-    return new Date(
-        parts[0],
-        parts[1] - 1,
-        parts[2],
-        12,
-        0,
-        0,
-        0
-    );
+    return parts.length === 3 && parts[0] && parts[1] && parts[2]
+        ? new Date(parts[0], parts[1] - 1, parts[2])
+        : null;
 }
 
 function dateKey(year, month, day) {
-    return (
-        year + '-' +
+    return year + '-' +
         String(month + 1).padStart(2, '0') + '-' +
-        String(day).padStart(2, '0')
-    );
+        String(day).padStart(2, '0');
 }
 
 function localDateString(date) {
@@ -1663,37 +1210,16 @@ function localDateString(date) {
     );
 }
 
-function sameDate(first, second) {
-    return (
-        first.getFullYear() === second.getFullYear() &&
-        first.getMonth() === second.getMonth() &&
-        first.getDate() === second.getDate()
-    );
-}
-
-function money(amount) {
-    return new Intl.NumberFormat('fr-CA', {
-        style: 'currency',
-        currency: 'CAD'
-    }).format(amount);
-}
-
-function compactMoney(amount) {
-    return new Intl.NumberFormat('fr-CA', {
-        style: 'currency',
-        currency: 'CAD',
-        maximumFractionDigits: 0
-    }).format(amount).replace(/\s/g, '');
-}
-
 function dateLabel(value) {
     const date = dateFromString(value);
 
-    return new Intl.DateTimeFormat('fr-CA', {
-        day: '2-digit',
-        month: 'long',
-        year: 'numeric'
-    }).format(date);
+    return date
+        ? new Intl.DateTimeFormat('fr-CA', {
+            day: '2-digit',
+            month: 'long',
+            year: 'numeric'
+        }).format(date)
+        : 'Date inconnue';
 }
 
 function monthTitle(date) {
@@ -1703,25 +1229,32 @@ function monthTitle(date) {
     }).format(date);
 }
 
+function money(value) {
+    return new Intl.NumberFormat('fr-CA', {
+        style: 'currency',
+        currency: 'CAD'
+    }).format(value);
+}
+
 function frequencyName(value) {
     const names = {
-        'one-time': 'Une seule fois',
-        weekly: 'Chaque semaine',
+        'one-time': 'Unique',
+        weekly: 'Hebdomadaire',
         biweekly: 'Aux 2 semaines',
-        monthly: 'Chaque mois'
+        monthly: 'Mensuelle'
     };
 
-    return names[value] || 'Une seule fois';
+    return names[value] || 'Unique';
 }
 
 function categoryName(value) {
     const names = {
         groceries: 'Épicerie',
-        food: 'Restaurants et repas',
+        food: 'Restaurants',
         transport: 'Transport',
         shopping: 'Achats',
         entertainment: 'Divertissement',
-        bills: 'Factures et logement',
+        bills: 'Factures',
         health: 'Santé',
         other: 'Autre'
     };
@@ -1744,22 +1277,28 @@ function categoryIcon(value) {
     return icons[value] || '📦';
 }
 
-function createId() {
-    if (window.crypto && crypto.randomUUID) {
-        return crypto.randomUUID();
-    }
-
-    return Date.now() + '-' + Math.random().toString(16).slice(2);
+function addYears(date, years) {
+    return new Date(
+        date.getFullYear() + years,
+        date.getMonth(),
+        date.getDate()
+    );
 }
 
-function html(text) {
+function createId() {
+    return window.crypto && crypto.randomUUID
+        ? crypto.randomUUID()
+        : Date.now() + '-' + Math.random().toString(16).slice(2);
+}
+
+function escapeHtml(value) {
     const element = document.createElement('div');
-    element.textContent = text || '';
+    element.textContent = String(value || '');
     return element.innerHTML;
 }
 
-function attribute(text) {
-    return String(text)
+function escapeAttribute(value) {
+    return String(value || '')
         .replace(/&/g, '&amp;')
         .replace(/'/g, '&#39;')
         .replace(/"/g, '&quot;')
