@@ -178,6 +178,41 @@ function addManualExpense() {
     );
 }
 
+function deleteTransaction(transactionId) {
+    const transaction = AppState.transactions.find(item => {
+        return item.id === transactionId;
+    });
+
+    if (!transaction) {
+        return;
+    }
+
+    const recurrenceMessage = transaction.frequency === 'one-time'
+        ? ''
+        : '\n\nCette dépense est récurrente. Elle sera aussi retirée de toutes les dates futures du calendrier.';
+
+    const confirmed = confirm(
+        'Supprimer cette dépense ?\n\n' +
+        transaction.merchant +
+        ' — ' +
+        formatMoney(transaction.amount) +
+        '\n' +
+        getFrequencyLabel(transaction.frequency) +
+        recurrenceMessage
+    );
+
+    if (!confirmed) {
+        return;
+    }
+
+    AppState.transactions = AppState.transactions.filter(item => {
+        return item.id !== transactionId;
+    });
+
+    saveToStorage();
+    updateUI();
+}
+
 function changeCalendarMonth(direction) {
     AppState.calendarDate = new Date(
         AppState.calendarDate.getFullYear(),
@@ -398,7 +433,8 @@ function showDayPayments(dateKey) {
         '\n\n' +
         list +
         '\n\nTotal : ' +
-        formatMoney(total)
+        formatMoney(total) +
+        '\n\nPour supprimer un paiement, utilisez le bouton Supprimer dans l’historique.'
     );
 }
 
@@ -618,8 +654,19 @@ function renderTransactions() {
                     </div>
                 </div>
 
-                <div class="transaction-amount">
-                    -${formatMoney(transaction.amount)}
+                <div class="transaction-actions">
+                    <div class="transaction-amount">
+                        -${formatMoney(transaction.amount)}
+                    </div>
+
+                    <button
+                        type="button"
+                        class="delete-transaction-button"
+                        onclick="deleteTransaction('${transaction.id}')"
+                        aria-label="Supprimer ${escapeHtml(transaction.merchant)}"
+                    >
+                        Supprimer
+                    </button>
                 </div>
             </div>
         `;
