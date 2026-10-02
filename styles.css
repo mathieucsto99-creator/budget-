@@ -1,46 +1,77 @@
 * {
     box-sizing: border-box;
+    margin: 0;
+    padding: 0;
 }
 
 body {
-    background: linear-gradient(135deg, #667eea, #764ba2);
-    color: #1f2937;
-    font-family: Arial, Helvetica, sans-serif;
-    margin: 0;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: #1F2937;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
     min-height: 100vh;
-    padding: 16px;
+    padding: 20px;
 }
 
 .app-container {
     margin: 0 auto;
-    max-width: 900px;
+    max-width: 760px;
 }
 
 .header {
-    color: white;
-    margin-bottom: 20px;
+    color: #FFFFFF;
+    margin-bottom: 24px;
     text-align: center;
 }
 
 .header h1 {
-    margin: 0 0 8px;
+    font-size: 2rem;
+    margin-bottom: 8px;
 }
 
 .subtitle {
-    margin: 0;
-    opacity: 0.9;
+    font-size: 0.95rem;
+    opacity: 0.92;
 }
 
 .card {
-    background: white;
-    border-radius: 14px;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
-    margin-bottom: 16px;
-    padding: 18px;
+    background: #FFFFFF;
+    border-radius: 16px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.12);
+    margin-bottom: 20px;
+    padding: 20px;
 }
 
 .card h2 {
-    margin-top: 0;
+    color: #1F2937;
+    font-size: 1.25rem;
+    margin-bottom: 16px;
+}
+
+.form-group {
+    margin-bottom: 16px;
+}
+
+.form-group label {
+    display: block;
+    font-weight: 700;
+    margin-bottom: 8px;
+}
+
+.form-group input,
+.form-group select {
+    background: #FFFFFF;
+    border: 2px solid #E5E7EB;
+    border-radius: 8px;
+    color: #1F2937;
+    font-size: 1rem;
+    padding: 12px 14px;
+    width: 100%;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+    border-color: #4F46E5;
+    outline: none;
 }
 
 .form-row {
@@ -52,235 +83,392 @@ body {
     flex: 1;
 }
 
-.form-group {
-    margin-bottom: 14px;
-}
-
-.form-group label {
-    display: block;
-    font-weight: bold;
-    margin-bottom: 6px;
-}
-
-.form-group input,
-.form-group select {
-    border: 1px solid #d1d5db;
-    border-radius: 8px;
-    font-size: 16px;
-    padding: 11px;
-    width: 100%;
+.helper-text {
+    color: #6B7280;
+    font-size: 0.85rem;
+    line-height: 1.4;
+    margin-top: 10px;
 }
 
 .btn {
-    border: 0;
+    border: none;
     border-radius: 8px;
-    color: white;
     cursor: pointer;
-    font-size: 16px;
-    font-weight: bold;
-    padding: 12px;
+    font-size: 1rem;
+    font-weight: 700;
+    padding: 12px 20px;
     width: 100%;
 }
 
 .btn-primary {
-    background: #4f46e5;
+    background: #4F46E5;
+    color: #FFFFFF;
+}
+
+.btn-primary:hover {
+    background: #4338CA;
 }
 
 .btn-income {
     background: #047857;
+    color: #FFFFFF;
+}
+
+.btn-income:hover {
+    background: #065F46;
 }
 
 .btn-planned {
-    background: #ea580c;
+    background: #EA580C;
+    color: #FFFFFF;
+}
+
+.btn-planned:hover {
+    background: #C2410C;
 }
 
 .btn-debt {
-    background: #b91c1c;
+    background: #B91C1C;
+    color: #FFFFFF;
+}
+
+.btn-debt:hover {
+    background: #991B1B;
 }
 
 .btn-text {
     background: transparent;
-    color: #b91c1c;
-    padding-left: 0;
+    color: #DC2626;
+    margin-top: 10px;
+    padding: 8px 0;
     text-align: left;
 }
 
-.helper-text,
-small {
-    color: #6b7280;
+.budget-card {
+    background: #F9FAFB;
+    border-left: 4px solid #4F46E5;
+    border-radius: 12px;
+    margin-bottom: 16px;
+    padding: 16px;
 }
 
-.summary-grid {
-    display: grid;
-    gap: 10px;
-    grid-template-columns: repeat(3, 1fr);
+.budget-card.weekly {
+    border-left-color: #10B981;
 }
 
-.summary-box {
-    border-radius: 10px;
-    padding: 14px;
+.budget-card.monthly {
+    border-left-color: #4F46E5;
 }
 
-.summary-label {
-    display: block;
-    font-size: 13px;
-    margin-bottom: 5px;
+.income-card {
+    border-left-color: #047857;
 }
 
-.summary-box strong {
-    display: block;
-    font-size: 20px;
+.budget-header,
+.budget-amounts {
+    align-items: center;
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 12px;
 }
 
-.income-summary {
-    background: #d1fae5;
-    border-left: 4px solid #047857;
+.budget-header h3 {
+    font-size: 1rem;
 }
 
-.expense-summary {
-    background: #fee2e2;
-    border-left: 4px solid #dc2626;
+.budget-percent {
+    background: #4F46E5;
+    border-radius: 20px;
+    color: #FFFFFF;
+    font-size: 0.85rem;
+    font-weight: 700;
+    padding: 4px 12px;
 }
 
-.balance-summary {
-    background: #e0e7ff;
-    border-left: 4px solid #4f46e5;
+.budget-amounts .spent {
+    color: #1F2937;
+    font-size: 1.5rem;
+    font-weight: 800;
+}
+
+.income-value {
+    color: #047857 !important;
+}
+
+.budget-amounts .total {
+    color: #6B7280;
+}
+
+.progress-bar {
+    background: #E5E7EB;
+    border-radius: 6px;
+    height: 12px;
+    margin-bottom: 8px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    background: linear-gradient(90deg, #10B981, #4F46E5);
+    border-radius: 6px;
+    height: 100%;
+    transition: width 0.3s;
+    width: 0;
+}
+
+.progress-fill.warning {
+    background: linear-gradient(90deg, #F59E0B, #EF4444);
+}
+
+.progress-fill.danger {
+    background: #DC2626;
+}
+
+.remaining {
+    color: #4B5563;
+    font-size: 0.9rem;
+    font-weight: 700;
+}
+
+.remaining.negative {
+    color: #DC2626;
+}
+
+.calendar-card {
+    overflow: hidden;
 }
 
 .calendar-header {
     align-items: center;
     display: flex;
+    gap: 12px;
     justify-content: space-between;
-    text-align: center;
+    margin-bottom: 16px;
 }
 
 .calendar-header h2 {
     margin-bottom: 4px;
+    text-align: center;
     text-transform: capitalize;
 }
 
 .calendar-summary {
-    color: #6b7280;
-    font-size: 13px;
-    margin: 0 0 10px;
+    color: #6B7280;
+    font-size: 0.85rem;
+    text-align: center;
 }
 
 .calendar-nav-button {
-    background: #eef2ff;
-    border: 0;
-    border-radius: 8px;
-    color: #4f46e5;
+    align-items: center;
+    background: #EEF2FF;
+    border: none;
+    border-radius: 10px;
+    color: #4F46E5;
     cursor: pointer;
-    font-size: 30px;
+    display: flex;
+    font-size: 2rem;
+    font-weight: 700;
     height: 42px;
-    width: 42px;
+    justify-content: center;
+    min-width: 42px;
+}
+
+.calendar-nav-button:hover {
+    background: #4F46E5;
+    color: #FFFFFF;
 }
 
 .calendar-weekdays,
 .calendar-grid {
     display: grid;
-    grid-template-columns: repeat(7, 1fr);
+    grid-template-columns: repeat(7, minmax(0, 1fr));
 }
 
-.calendar-weekdays span {
-    color: #6b7280;
-    font-size: 12px;
-    font-weight: bold;
-    padding: 7px 2px;
+.calendar-weekdays {
+    border-bottom: 1px solid #E5E7EB;
+    color: #6B7280;
+    font-size: 0.7rem;
+    font-weight: 700;
     text-align: center;
 }
 
+.calendar-weekdays span {
+    padding: 8px 1px;
+}
+
 .calendar-grid {
-    border-left: 1px solid #d1d5db;
-    border-top: 1px solid #d1d5db;
+    border-left: 1px solid #E5E7EB;
+    border-top: 1px solid #E5E7EB;
 }
 
 .calendar-day {
-    border-bottom: 1px solid #d1d5db;
-    border-right: 1px solid #d1d5db;
-    min-height: 120px;
+    background: #FFFFFF;
+    border-bottom: 1px solid #E5E7EB;
+    border-right: 1px solid #E5E7EB;
+    min-height: 132px;
     overflow: hidden;
-    padding: 4px;
+    padding: 5px;
+    position: relative;
 }
 
-.empty-day {
-    background: #f9fafb;
+.calendar-day.empty-day {
+    background: #F9FAFB;
+}
+
+.calendar-day.today {
+    background: #EEF2FF;
+    box-shadow: inset 0 0 0 2px #4F46E5;
+}
+
+.calendar-day.has-payments {
+    background: #FCFCFF;
 }
 
 .calendar-day-number {
-    font-size: 12px;
-    font-weight: bold;
+    color: #374151;
+    font-size: 0.8rem;
+    font-weight: 800;
     margin-bottom: 4px;
 }
 
-.calendar-item {
-    border-left: 4px solid #6b7280;
-    border-radius: 3px;
-    font-size: 10px;
-    margin-bottom: 3px;
-    padding: 3px;
-    word-break: break-word;
+.calendar-payment {
+    border-left: 4px solid #6B7280;
+    border-radius: 4px;
+    font-size: 0.62rem;
+    line-height: 1.2;
+    margin-bottom: 4px;
+    overflow: hidden;
+    padding: 4px 3px;
+    white-space: nowrap;
 }
 
-.calendar-item strong,
-.calendar-item span {
-    display: block;
+.calendar-payment.one-time {
+    background: #FEF3C7;
+    border-left-color: #F59E0B;
+    color: #78350F;
 }
 
-.calendar-item.income {
-    background: #d1fae5;
-    border-color: #047857;
+.calendar-payment.weekly {
+    background: #DCFCE7;
+    border-left-color: #10B981;
+    color: #14532D;
 }
 
-.calendar-item.payment {
-    background: #e0e7ff;
-    border-color: #4f46e5;
+.calendar-payment.biweekly {
+    background: #FCE7F3;
+    border: 1px solid #F472B6;
+    border-left: 5px solid #DB2777;
+    color: #831843;
 }
 
-.calendar-item.planned {
-    background: #ffedd5;
-    border-color: #ea580c;
+.calendar-payment.monthly {
+    background: #E0E7FF;
+    border-left-color: #4F46E5;
+    color: #312E81;
 }
 
-.calendar-item.debt {
-    background: #fee2e2;
-    border-color: #dc2626;
+.calendar-payment.income-event {
+    background: #D1FAE5;
+    border-left-color: #047857;
+    color: #064E3B;
 }
 
-.debt-check {
+.calendar-payment.planned-event {
+    background: #FFEDD5;
+    border-left-color: #EA580C;
+    color: #7C2D12;
+}
+
+.calendar-payment.debt-event {
+    background: #FEE2E2;
+    border-left-color: #DC2626;
+    color: #7F1D1D;
+}
+
+.calendar-payment-top {
     align-items: center;
     display: flex;
-    font-size: 9px;
     gap: 2px;
-    margin-top: 3px;
+    justify-content: space-between;
 }
 
-.debt-check input {
-    margin: 0;
+.calendar-payment-name {
+    flex: 1;
+    font-weight: 800;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
-.calendar-more {
-    color: #6d28d9;
-    font-size: 10px;
-    font-weight: bold;
+.calendar-payment-amount {
+    display: block;
+    font-size: 0.58rem;
+    font-weight: 700;
+}
+
+.calendar-delete-button {
+    align-items: center;
+    background: rgba(255, 255, 255, 0.7);
+    border: none;
+    border-radius: 50%;
+    color: inherit;
+    cursor: pointer;
+    display: flex;
+    font-size: 0.9rem;
+    font-weight: 900;
+    height: 16px;
+    justify-content: center;
+    min-width: 16px;
+    padding: 0;
+}
+
+.calendar-delete-button:hover {
+    background: #DC2626;
+    color: #FFFFFF;
+}
+
+.calendar-more-payments {
+    background: #EDE9FE;
+    border: 1px dashed #7C3AED;
+    border-radius: 4px;
+    color: #5B21B6;
+    cursor: pointer;
+    font-size: 0.6rem;
+    font-weight: 800;
+    margin: 2px 0 4px;
+    padding: 3px;
+    width: 100%;
+}
+
+.calendar-day-total {
+    background: rgba(255, 255, 255, 0.92);
+    border-radius: 4px;
+    bottom: 3px;
+    color: #111827;
+    font-size: 0.63rem;
+    font-weight: 800;
+    padding: 2px 3px;
+    position: absolute;
+    right: 3px;
 }
 
 .calendar-legend {
     display: flex;
     flex-wrap: wrap;
     gap: 10px;
-    margin: 12px 0;
+    margin-top: 14px;
 }
 
 .calendar-legend span {
     align-items: center;
+    color: #4B5563;
     display: flex;
-    font-size: 12px;
-    gap: 4px;
+    font-size: 0.78rem;
+    gap: 5px;
 }
 
 .legend-dot {
     border-radius: 50%;
+    display: inline-block;
     height: 10px;
     width: 10px;
 }
@@ -289,192 +477,211 @@ small {
     background: #047857;
 }
 
-.payment-dot {
-    background: #4f46e5;
+.one-time-dot {
+    background: #F59E0B;
+}
+
+.weekly-dot {
+    background: #10B981;
+}
+
+.biweekly-dot {
+    background: #DB2777;
+}
+
+.monthly-dot {
+    background: #4F46E5;
 }
 
 .planned-dot {
-    background: #ea580c;
+    background: #EA580C;
 }
 
 .debt-dot {
-    background: #dc2626;
+    background: #DC2626;
 }
 
 .export-calendar-button {
-    background: #0f766e;
+    background: #0F766E;
+    color: #FFFFFF;
+    margin-top: 16px;
 }
 
-.item-list {
-    max-height: 360px;
+.export-calendar-button:hover {
+    background: #115E59;
+}
+
+.transactions-list {
+    max-height: 430px;
     overflow-y: auto;
 }
 
-.list-item {
+.transaction-item {
     align-items: center;
-    border-bottom: 1px solid #e5e7eb;
+    border-bottom: 1px solid #E5E7EB;
     display: flex;
+    gap: 12px;
     justify-content: space-between;
-    padding: 10px 0;
+    padding: 12px 4px;
 }
 
-.list-item strong,
-.list-item small {
-    display: block;
+.transaction-item:last-child {
+    border-bottom: none;
 }
 
-.list-actions {
+.transaction-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.transaction-merchant {
+    font-weight: 800;
+    margin-bottom: 4px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.transaction-meta {
+    color: #6B7280;
+    font-size: 0.8rem;
+    line-height: 1.35;
+}
+
+.transaction-actions {
     align-items: flex-end;
     display: flex;
     flex-direction: column;
-    gap: 5px;
+    gap: 6px;
 }
 
-.list-actions button,
-.planned-header button,
-.debt-card button,
-.saving-row button {
-    background: #fee2e2;
-    border: 1px solid #fca5a5;
-    border-radius: 5px;
-    color: #b91c1c;
-    cursor: pointer;
-    font-size: 11px;
-    font-weight: bold;
-    padding: 4px 6px;
+.transaction-amount {
+    color: #DC2626;
+    font-size: 1rem;
+    font-weight: 800;
+    white-space: nowrap;
 }
 
 .income-amount {
     color: #047857;
-    font-weight: bold;
+    font-size: 1rem;
+    font-weight: 800;
+    white-space: nowrap;
 }
 
-.payment-amount {
-    color: #b91c1c;
-    font-weight: bold;
+.delete-transaction-button {
+    background: #FEE2E2;
+    border: 1px solid #FCA5A5;
+    border-radius: 6px;
+    color: #B91C1C;
+    cursor: pointer;
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 5px 8px;
 }
 
-.planned-card,
-.debt-card {
+.empty-state {
+    color: #9CA3AF;
+    padding: 28px 12px;
+    text-align: center;
+}
+
+.debt-item {
+    background: #FFF7ED;
+    border-left: 4px solid #DC2626;
     border-radius: 10px;
     margin-bottom: 12px;
     padding: 14px;
 }
 
-.planned-card {
-    background: #fff7ed;
-    border-left: 4px solid #ea580c;
+.debt-item:last-child {
+    margin-bottom: 0;
 }
 
-.debt-card {
-    background: #fef2f2;
-    border-left: 4px solid #dc2626;
+.debt-item p {
+    color: #4B5563;
+    font-size: 0.88rem;
+    margin-top: 6px;
 }
 
-.planned-header {
-    align-items: flex-start;
+.debt-item-header {
+    align-items: center;
     display: flex;
+    gap: 12px;
     justify-content: space-between;
 }
 
-.planned-header small {
-    display: block;
-    margin-top: 4px;
+.debt-remaining {
+    color: #B91C1C !important;
+    font-size: 1rem !important;
+    font-weight: 800;
 }
 
-.planned-values {
-    display: flex;
-    flex-wrap: wrap;
-    font-size: 13px;
-    gap: 12px;
-    margin: 12px 0 8px;
-}
-
-.green {
-    color: #047857;
-}
-
-.saving-bar {
-    background: #fed7aa;
-    border-radius: 8px;
-    height: 12px;
+.debt-progress-bar {
+    background: #FECACA;
+    border-radius: 6px;
+    height: 10px;
+    margin-top: 10px;
     overflow: hidden;
 }
 
-.saving-bar div {
-    background: linear-gradient(90deg, #f59e0b, #047857);
+.debt-progress-fill {
+    background: #DC2626;
+    border-radius: 6px;
     height: 100%;
 }
 
-.debt-bar {
-    background: #fecaca;
-}
-
-.debt-bar div {
-    background: #dc2626;
-}
-
-.saving-status {
-    color: #9a3412;
-    font-size: 13px;
-    font-weight: bold;
-}
-
-.saving-button {
-    background: #ea580c;
-    margin: 8px 0;
-}
-
-.saving-row,
-.debt-row {
-    align-items: center;
-    background: white;
-    border: 1px solid #e5e7eb;
-    border-radius: 6px;
-    display: flex;
-    font-size: 13px;
-    justify-content: space-between;
-    margin: 6px 0;
-    padding: 7px;
-}
-
-.debt-row {
-    display: grid;
-    gap: 6px;
-    grid-template-columns: auto 1fr;
-}
-
-.debt-row small {
-    grid-column: 2;
-}
-
-.empty-saving,
-.empty-state {
-    color: #9ca3af;
-    text-align: center;
+.debt-progress-text {
+    color: #B91C1C !important;
+    font-weight: 700;
 }
 
 .category-stats {
     display: grid;
-    gap: 10px;
-    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 12px;
+    grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
 }
 
 .category-stat {
-    background: #f9fafb;
-    border-radius: 8px;
-    padding: 10px;
+    background: #F9FAFB;
+    border-radius: 10px;
+    padding: 12px;
     text-align: center;
 }
 
-.category-stat strong,
-.category-stat span {
-    display: block;
+.category-stat .icon {
+    font-size: 1.8rem;
+    margin-bottom: 6px;
 }
 
-@media (max-width: 650px) {
+.category-stat .name {
+    color: #6B7280;
+    font-size: 0.8rem;
+    margin-bottom: 4px;
+}
+
+.category-stat .amount {
+    font-size: 1.05rem;
+    font-weight: 800;
+}
+
+.category-stat .percent {
+    color: #9CA3AF;
+    font-size: 0.75rem;
+    margin-top: 4px;
+}
+
+@media (max-width: 560px) {
     body {
-        padding: 10px;
+        padding: 12px;
+    }
+
+    .header h1 {
+        font-size: 1.6rem;
+    }
+
+    .card {
+        padding: 16px;
     }
 
     .form-row {
@@ -482,21 +689,115 @@ small {
         gap: 0;
     }
 
-    .summary-grid {
-        grid-template-columns: repeat(2, 1fr);
-    }
-
     .calendar-day {
-        min-height: 94px;
+        min-height: 108px;
         padding: 3px;
     }
 
-    .calendar-item {
-        font-size: 8px;
-        padding: 2px;
+    .calendar-payment {
+        font-size: 0.54rem;
+        margin-bottom: 2px;
+        padding: 3px 1px;
     }
 
-    .calendar-item span {
-        font-size: 8px;
+    .calendar-payment-amount {
+        font-size: 0.5rem;
+    }
+
+    .calendar-delete-button {
+        font-size: 0.75rem;
+        height: 14px;
+        min-width: 14px;
+    }
+
+    .calendar-more-payments {
+        font-size: 0.52rem;
+        padding: 2px 1px;
+    }
+
+    .calendar-day-total {
+        font-size: 0.55rem;
+    }
+
+    .calendar-weekdays {
+        font-size: 0.58rem;
+    }
+
+    .calendar-legend {
+        gap: 8px;
+    }
+
+    .calendar-legend span {
+        font-size: 0.7rem;
+    }
+}
+.debt-calendar-check {
+    align-items: center;
+    display: flex;
+    font-size: 0.52rem;
+    font-weight: 700;
+    gap: 3px;
+    margin-top: 3px;
+}
+
+.debt-calendar-check input {
+    height: 12px;
+    margin: 0;
+    width: 12px;
+}
+
+.debt-payment-details {
+    border-top: 1px solid #FED7AA;
+    margin-top: 12px;
+    padding-top: 10px;
+}
+
+.debt-payment-details summary {
+    color: #B91C1C;
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 700;
+}
+
+.debt-payment-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 10px;
+    max-height: 280px;
+    overflow-y: auto;
+}
+
+.debt-payment-row {
+    align-items: center;
+    background: #FFFFFF;
+    border: 1px solid #FED7AA;
+    border-radius: 6px;
+    cursor: pointer;
+    display: grid;
+    gap: 5px;
+    grid-template-columns: auto 1fr;
+    padding: 8px;
+}
+
+.debt-payment-row input {
+    height: 18px;
+    width: 18px;
+}
+
+.debt-payment-row small {
+    color: #6B7280;
+    font-size: 0.72rem;
+    grid-column: 2;
+}
+
+@media (max-width: 560px) {
+    .debt-calendar-check {
+        font-size: 0.48rem;
+    }
+
+    .debt-calendar-check input {
+        height: 10px;
+        width: 10px;
     }
 }
