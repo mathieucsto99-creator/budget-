@@ -8,7 +8,7 @@
 
     <meta
         name="description"
-        content="Suivi personnel de budget mensuel et hebdomadaire"
+        content="Suivi personnel de budget mensuel, hebdomadaire et calendrier de paiements"
     >
     <meta name="theme-color" content="#4F46E5">
 
@@ -257,8 +257,16 @@
                 <span><i class="legend-dot monthly-dot"></i> Mensuelle</span>
             </div>
 
+            <button
+                type="button"
+                class="btn export-calendar-button"
+                onclick="exportCalendar()"
+            >
+                📅 Exporter le calendrier (.ics)
+            </button>
+
             <p class="helper-text">
-                Utilisez les flèches pour consulter les mois. Les paiements hebdomadaires, aux 2 semaines et mensuels sont automatiquement répétés aux bonnes dates.
+                Le fichier exporté peut être importé dans Google Calendar, Samsung Calendar, Apple Calendar ou Outlook.
             </p>
         </section>
 
