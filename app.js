@@ -60,11 +60,13 @@ function loadFromStorage() {
                 date: transaction.date || getLocalDateString(
                     new Date(transaction.timestamp || new Date())
                 ),
-                frequency: transaction.frequency || 'one-time',
+                frequency: normalizeFrequency(transaction.frequency),
                 timestamp: transaction.timestamp || new Date().toISOString(),
                 source: transaction.source || 'manual'
             };
         });
+
+        saveToStorage();
     } catch (error) {
         console.warn('Les données enregistrées ne peuvent pas être lues :', error);
 
@@ -72,6 +74,19 @@ function loadFromStorage() {
         AppState.weeklyBudget = 0;
         AppState.transactions = [];
     }
+}
+
+function normalizeFrequency(frequency) {
+    const allowedFrequencies = [
+        'one-time',
+        'weekly',
+        'biweekly',
+        'monthly'
+    ];
+
+    return allowedFrequencies.includes(frequency)
+        ? frequency
+        : 'one-time';
 }
 
 function saveToStorage() {
@@ -110,7 +125,7 @@ function addManualExpense() {
     const amount = Number.parseFloat(amountInput.value);
     const merchant = merchantInput.value.trim() || 'Dépense sans nom';
     const date = dateInput.value;
-    const frequency = frequencyInput.value;
+    const frequency = normalizeFrequency(frequencyInput.value);
     const category = categoryInput.value;
 
     if (!Number.isFinite(amount) || amount <= 0) {
@@ -135,7 +150,6 @@ function addManualExpense() {
     };
 
     AppState.transactions.unshift(transaction);
-
     saveToStorage();
 
     const transactionDate = dateFromInput(date);
@@ -276,7 +290,6 @@ function renderCalendar() {
     for (let day = 1; day <= daysInMonth; day += 1) {
         const dateKey = getDateKey(year, month, day);
         const scheduledTransactions = transactionsByDate[dateKey] || [];
-
         const isToday = isSameDate(
             new Date(year, month, day),
             new Date()
@@ -287,30 +300,50 @@ function renderCalendar() {
             0
         );
 
-        const paymentsHtml = scheduledTransactions
+        const visibleTransactions = scheduledTransactions
             .sort((a, b) => b.amount - a.amount)
-            .map(transaction => {
-                return `
-                    <div class="calendar-payment ${transaction.frequency}">
-                        <span class="calendar-payment-name">
-                            ${escapeHtml(transaction.merchant)}
-                        </span>
-                        <span class="calendar-payment-amount">
-                            ${formatCompactMoney(transaction.amount)}
-                        </span>
-                    </div>
-                `;
-            })
-            .join('');
+            .slice(0, 3);
+
+        const hiddenCount = scheduledTransactions.length - visibleTransactions.length;
+
+        const paymentsHtml = visibleTransactions.map(transaction => {
+            return `
+                <div class="calendar-payment ${transaction.frequency}">
+                    <span class="calendar-payment-name">
+                        ${escapeHtml(transaction.merchant)}
+                    </span>
+                    <span class="calendar-payment-amount">
+                        ${formatCompactMoney(transaction.amount)}
+                    </span>
+                </div>
+            `;
+        }).join('');
+
+        const morePaymentsHtml = hiddenCount > 0
+            ? `
+                <button
+                    type="button"
+                    class="calendar-more-payments"
+                    onclick="showDayPayments('${dateKey}')"
+                >
+                    + ${hiddenCount} autre${hiddenCount > 1 ? 's' : ''}
+                </button>
+            `
+            : '';
 
         const dayTotalHtml = scheduledTransactions.length > 0
             ? `<div class="calendar-day-total">${formatCompactMoney(totalForDay)}</div>`
             : '';
 
+        const hasPaymentsClass = scheduledTransactions.length > 0
+            ? 'has-payments'
+            : '';
+
         cells.push(`
-            <div class="calendar-day ${isToday ? 'today' : ''}">
+            <div class="calendar-day ${hasPaymentsClass} ${isToday ? 'today' : ''}">
                 <div class="calendar-day-number">${day}</div>
                 ${paymentsHtml}
+                ${morePaymentsHtml}
                 ${dayTotalHtml}
             </div>
         `);
@@ -326,6 +359,47 @@ function renderCalendar() {
     }
 
     calendarGrid.innerHTML = cells.join('');
+}
+
+function showDayPayments(dateKey) {
+    const [year, month, day] = dateKey.split('-').map(Number);
+
+    const transactionsByDate = getTransactionsForMonth(year, month - 1);
+    const payments = transactionsByDate[dateKey] || [];
+
+    if (payments.length === 0) {
+        return;
+    }
+
+    const title = formatDateOnly(dateKey);
+
+    const list = payments
+        .sort((a, b) => b.amount - a.amount)
+        .map(payment => {
+            return (
+                '• ' +
+                payment.merchant +
+                ' — ' +
+                formatMoney(payment.amount) +
+                ' (' +
+                getFrequencyLabel(payment.frequency) +
+                ')'
+            );
+        })
+        .join('\n');
+
+    const total = payments.reduce(
+        (sum, payment) => sum + payment.amount,
+        0
+    );
+
+    alert(
+        title +
+        '\n\n' +
+        list +
+        '\n\nTotal : ' +
+        formatMoney(total)
+    );
 }
 
 function getTransactionsForMonth(year, month) {
