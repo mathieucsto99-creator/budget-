@@ -50,7 +50,7 @@
             </button>
 
             <p class="helper-text">
-                Le budget hebdomadaire est calculé en divisant le budget mensuel par 4,33.
+                Le budget hebdomadaire est calculé automatiquement à partir du budget mensuel.
             </p>
         </section>
 
@@ -172,7 +172,7 @@
             </button>
 
             <p class="helper-text">
-                Les paiements récurrents apparaissent automatiquement dans les mois suivants.
+                Les paiements récurrents se répètent automatiquement dans les mois suivants.
             </p>
         </section>
 
@@ -226,13 +226,13 @@
             <button
                 type="button"
                 class="btn export-calendar-button"
-                onclick="exportCalendar()"
+                onclick="exportPrintableReport()"
             >
-                📅 Exporter le calendrier (.ics)
+                🖨️ Exporter / Imprimer le calendrier
             </button>
 
             <p class="helper-text">
-                Le fichier .ics peut être importé dans Samsung Calendar, Google Calendar, Apple Calendar ou Outlook.
+                Le rapport affiche tous les paiements du mois sélectionné, même lorsqu’il y en a plusieurs la même journée.
             </p>
         </section>
 
