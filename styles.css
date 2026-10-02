@@ -26,7 +26,6 @@ body {
 .header h1 {
     font-size: 2rem;
     margin-bottom: 8px;
-    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 .subtitle {
@@ -35,7 +34,6 @@ body {
 }
 
 .card {
-    animation: slideIn 0.3s ease-out;
     background: #FFFFFF;
     border-radius: 16px;
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.12);
@@ -49,47 +47,13 @@ body {
     margin-bottom: 16px;
 }
 
-.permissions-card {
-    background: #FEF3C7;
-    border: 2px solid #F59E0B;
-}
-
-.permission-list {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-}
-
-.permission-item {
-    align-items: center;
-    background: #FFFFFF;
-    border-radius: 10px;
-    display: flex;
-    gap: 12px;
-    padding: 12px;
-}
-
-.permission-item .icon {
-    font-size: 2rem;
-}
-
-.permission-item strong {
-    display: block;
-    margin-bottom: 4px;
-}
-
-.permission-item p {
-    color: #6B7280;
-    font-size: 0.85rem;
-}
-
 .form-group {
     margin-bottom: 16px;
 }
 
 .form-group label {
     display: block;
-    font-weight: 600;
+    font-weight: 700;
     margin-bottom: 8px;
 }
 
@@ -101,7 +65,6 @@ body {
     color: #1F2937;
     font-size: 1rem;
     padding: 12px 14px;
-    transition: border-color 0.2s;
     width: 100%;
 }
 
@@ -132,9 +95,8 @@ body {
     border-radius: 8px;
     cursor: pointer;
     font-size: 1rem;
-    font-weight: 600;
+    font-weight: 700;
     padding: 12px 20px;
-    transition: all 0.2s ease;
     width: 100%;
 }
 
@@ -145,15 +107,6 @@ body {
 
 .btn-primary:hover {
     background: #4338CA;
-    box-shadow: 0 4px 12px rgba(79, 70, 229, 0.4);
-    transform: translateY(-1px);
-}
-
-.btn-small {
-    font-size: 0.85rem;
-    margin-left: auto;
-    padding: 8px 14px;
-    width: auto;
 }
 
 .btn-text {
@@ -162,10 +115,6 @@ body {
     margin-top: 10px;
     padding: 8px 0;
     text-align: left;
-}
-
-.btn-text:hover {
-    text-decoration: underline;
 }
 
 .budget-card {
@@ -180,11 +129,8 @@ body {
     border-left-color: #10B981;
 }
 
-.budget-card.monthly {
-    border-left-color: #4F46E5;
-}
-
-.budget-header {
+.budget-header,
+.budget-amounts {
     align-items: center;
     display: flex;
     justify-content: space-between;
@@ -204,13 +150,6 @@ body {
     padding: 4px 12px;
 }
 
-.budget-amounts {
-    align-items: center;
-    display: flex;
-    justify-content: space-between;
-    margin-bottom: 12px;
-}
-
 .budget-amounts .spent {
     color: #1F2937;
     font-size: 1.5rem;
@@ -219,7 +158,6 @@ body {
 
 .budget-amounts .total {
     color: #6B7280;
-    font-size: 1rem;
 }
 
 .progress-bar {
@@ -231,24 +169,19 @@ body {
 }
 
 .progress-fill {
-    background: linear-gradient(90deg, #10B981 0%, #4F46E5 100%);
+    background: linear-gradient(90deg, #10B981, #4F46E5);
     border-radius: 6px;
     height: 100%;
-    transition: width 0.3s ease, background 0.3s ease;
+    transition: width 0.3s;
     width: 0;
 }
 
 .progress-fill.warning {
-    background: linear-gradient(90deg, #F59E0B 0%, #EF4444 100%);
+    background: linear-gradient(90deg, #F59E0B, #EF4444);
 }
 
 .progress-fill.danger {
-    background: linear-gradient(90deg, #EF4444 0%, #DC2626 100%);
-}
-
-.budget-footer {
-    display: flex;
-    justify-content: space-between;
+    background: #DC2626;
 }
 
 .remaining {
@@ -259,114 +192,6 @@ body {
 
 .remaining.negative {
     color: #DC2626;
-}
-
-.transactions-list {
-    max-height: 420px;
-    overflow-y: auto;
-}
-
-.transaction-item {
-    align-items: center;
-    border-bottom: 1px solid #E5E7EB;
-    display: flex;
-    gap: 12px;
-    justify-content: space-between;
-    padding: 12px 4px;
-}
-
-.transaction-item:last-child {
-    border-bottom: none;
-}
-
-.transaction-info {
-    flex: 1;
-    min-width: 0;
-}
-
-.transaction-merchant {
-    font-weight: 700;
-    margin-bottom: 4px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.transaction-meta {
-    color: #6B7280;
-    font-size: 0.8rem;
-    line-height: 1.35;
-}
-
-.transaction-actions {
-    align-items: flex-end;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-}
-
-.transaction-amount {
-    color: #DC2626;
-    font-size: 1rem;
-    font-weight: 800;
-    white-space: nowrap;
-}
-
-.delete-transaction-button {
-    background: #FEE2E2;
-    border: 1px solid #FCA5A5;
-    border-radius: 6px;
-    color: #B91C1C;
-    cursor: pointer;
-    font-size: 0.72rem;
-    font-weight: 700;
-    padding: 5px 8px;
-}
-
-.delete-transaction-button:hover {
-    background: #FECACA;
-    border-color: #EF4444;
-}
-
-.empty-state {
-    color: #9CA3AF;
-    padding: 28px 12px;
-    text-align: center;
-}
-
-.category-stats {
-    display: grid;
-    gap: 12px;
-    grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
-}
-
-.category-stat {
-    background: #F9FAFB;
-    border-radius: 10px;
-    padding: 12px;
-    text-align: center;
-}
-
-.category-stat .icon {
-    font-size: 1.8rem;
-    margin-bottom: 6px;
-}
-
-.category-stat .name {
-    color: #6B7280;
-    font-size: 0.8rem;
-    margin-bottom: 4px;
-}
-
-.category-stat .amount {
-    font-size: 1.05rem;
-    font-weight: 800;
-}
-
-.category-stat .percent {
-    color: #9CA3AF;
-    font-size: 0.75rem;
-    margin-top: 4px;
 }
 
 .calendar-card {
@@ -405,7 +230,6 @@ body {
     font-weight: 700;
     height: 42px;
     justify-content: center;
-    line-height: 1;
     min-width: 42px;
 }
 
@@ -425,8 +249,6 @@ body {
     color: #6B7280;
     font-size: 0.7rem;
     font-weight: 700;
-    gap: 2px;
-    margin-bottom: 2px;
     text-align: center;
 }
 
@@ -437,7 +259,6 @@ body {
 .calendar-grid {
     border-left: 1px solid #E5E7EB;
     border-top: 1px solid #E5E7EB;
-    gap: 0;
 }
 
 .calendar-day {
@@ -466,24 +287,18 @@ body {
 .calendar-day-number {
     color: #374151;
     font-size: 0.8rem;
-    font-weight: 700;
+    font-weight: 800;
     margin-bottom: 4px;
-}
-
-.today .calendar-day-number {
-    color: #4F46E5;
 }
 
 .calendar-payment {
     border-left: 4px solid #6B7280;
     border-radius: 4px;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
     font-size: 0.62rem;
     line-height: 1.2;
     margin-bottom: 4px;
     overflow: hidden;
     padding: 4px 3px;
-    text-overflow: ellipsis;
     white-space: nowrap;
 }
 
@@ -520,7 +335,6 @@ body {
 }
 
 .calendar-payment-name {
-    display: block;
     flex: 1;
     font-weight: 800;
     min-width: 0;
@@ -536,17 +350,16 @@ body {
 
 .calendar-delete-button {
     align-items: center;
-    background: rgba(255, 255, 255, 0.65);
+    background: rgba(255, 255, 255, 0.7);
     border: none;
     border-radius: 50%;
     color: inherit;
     cursor: pointer;
-    display: inline-flex;
+    display: flex;
     font-size: 0.9rem;
     font-weight: 900;
     height: 16px;
     justify-content: center;
-    line-height: 1;
     min-width: 16px;
     padding: 0;
 }
@@ -566,12 +379,7 @@ body {
     font-weight: 800;
     margin: 2px 0 4px;
     padding: 3px;
-    text-align: center;
     width: 100%;
-}
-
-.calendar-more-payments:hover {
-    background: #DDD6FE;
 }
 
 .calendar-day-total {
@@ -632,20 +440,113 @@ body {
 
 .export-calendar-button:hover {
     background: #115E59;
-    box-shadow: 0 4px 12px rgba(15, 118, 110, 0.3);
-    transform: translateY(-1px);
 }
 
-@keyframes slideIn {
-    from {
-        opacity: 0;
-        transform: translateY(14px);
-    }
+.transactions-list {
+    max-height: 420px;
+    overflow-y: auto;
+}
 
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+.transaction-item {
+    align-items: center;
+    border-bottom: 1px solid #E5E7EB;
+    display: flex;
+    gap: 12px;
+    justify-content: space-between;
+    padding: 12px 4px;
+}
+
+.transaction-item:last-child {
+    border-bottom: none;
+}
+
+.transaction-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.transaction-merchant {
+    font-weight: 800;
+    margin-bottom: 4px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.transaction-meta {
+    color: #6B7280;
+    font-size: 0.8rem;
+    line-height: 1.35;
+}
+
+.transaction-actions {
+    align-items: flex-end;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.transaction-amount {
+    color: #DC2626;
+    font-size: 1rem;
+    font-weight: 800;
+    white-space: nowrap;
+}
+
+.delete-transaction-button {
+    background: #FEE2E2;
+    border: 1px solid #FCA5A5;
+    border-radius: 6px;
+    color: #B91C1C;
+    cursor: pointer;
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 5px 8px;
+}
+
+.delete-transaction-button:hover {
+    background: #FECACA;
+}
+
+.empty-state {
+    color: #9CA3AF;
+    padding: 28px 12px;
+    text-align: center;
+}
+
+.category-stats {
+    display: grid;
+    gap: 12px;
+    grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
+}
+
+.category-stat {
+    background: #F9FAFB;
+    border-radius: 10px;
+    padding: 12px;
+    text-align: center;
+}
+
+.category-stat .icon {
+    font-size: 1.8rem;
+    margin-bottom: 6px;
+}
+
+.category-stat .name {
+    color: #6B7280;
+    font-size: 0.8rem;
+    margin-bottom: 4px;
+}
+
+.category-stat .amount {
+    font-size: 1.05rem;
+    font-weight: 800;
+}
+
+.category-stat .percent {
+    color: #9CA3AF;
+    font-size: 0.75rem;
+    margin-top: 4px;
 }
 
 @media (max-width: 560px) {
@@ -667,7 +568,7 @@ body {
     }
 
     .calendar-day {
-        min-height: 103px;
+        min-height: 104px;
         padding: 3px;
     }
 
@@ -706,116 +607,5 @@ body {
 
     .calendar-legend span {
         font-size: 0.7rem;
-    }
-}
-
-@media (prefers-color-scheme: dark) {
-    body {
-        background: linear-gradient(135deg, #1E1E2E 0%, #2D1B4E 100%);
-        color: #E5E7EB;
-    }
-
-    .card {
-        background: #2D2D44;
-        color: #E5E7EB;
-    }
-
-    .card h2 {
-        color: #F3F4F6;
-    }
-
-    .permissions-card {
-        background: #4A3C1D;
-        border-color: #B7791F;
-    }
-
-    .permission-item,
-    .calendar-day {
-        background: #3D3D5C;
-    }
-
-    .permission-item p,
-    .helper-text,
-    .calendar-summary,
-    .transaction-meta,
-    .calendar-weekdays {
-        color: #D1D5DB;
-    }
-
-    .form-group input,
-    .form-group select {
-        background: #3D3D5C;
-        border-color: #4D4D6A;
-        color: #F3F4F6;
-    }
-
-    .budget-card,
-    .category-stat {
-        background: #3D3D5C;
-    }
-
-    .budget-amounts .spent,
-    .calendar-day-number,
-    .calendar-day-total {
-        color: #F3F4F6;
-    }
-
-    .transaction-item,
-    .calendar-weekdays {
-        border-bottom-color: #4D4D6A;
-    }
-
-    .calendar-grid {
-        border-left-color: #4D4D6A;
-        border-top-color: #4D4D6A;
-    }
-
-    .calendar-day {
-        border-bottom-color: #4D4D6A;
-        border-right-color: #4D4D6A;
-    }
-
-    .calendar-day.empty-day {
-        background: #34344F;
-    }
-
-    .calendar-day.has-payments {
-        background: #424263;
-    }
-
-    .calendar-day.today {
-        background: #37306B;
-    }
-
-    .calendar-nav-button {
-        background: #4F46E5;
-        color: #FFFFFF;
-    }
-
-    .calendar-day-total {
-        background: #27273C;
-    }
-
-    .calendar-more-payments {
-        background: #493580;
-        border-color: #A78BFA;
-        color: #F3E8FF;
-    }
-
-    .calendar-payment.biweekly {
-        background: #831843;
-        border-color: #F472B6;
-        border-left-color: #F9A8D4;
-        color: #FCE7F3;
-    }
-
-    .delete-transaction-button {
-        background: #7F1D1D;
-        border-color: #F87171;
-        color: #FEE2E2;
-    }
-
-    .export-calendar-button {
-        background: #0F766E;
     }
 }
