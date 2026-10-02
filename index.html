@@ -172,6 +172,7 @@
                     <select id="expenseFrequency">
                         <option value="one-time">Unique</option>
                         <option value="weekly">Hebdomadaire</option>
+                        <option value="biweekly">Aux 2 semaines</option>
                         <option value="monthly">Mensuelle</option>
                     </select>
                 </div>
@@ -201,7 +202,7 @@
             </button>
 
             <p class="helper-text">
-                Unique : une seule fois. Hebdomadaire : chaque semaine. Mensuelle : chaque mois à la date sélectionnée.
+                Unique : une seule fois. Hebdomadaire : tous les 7 jours. Aux 2 semaines : tous les 14 jours. Mensuelle : chaque mois à la même date.
             </p>
         </section>
 
@@ -252,11 +253,12 @@
             <div class="calendar-legend">
                 <span><i class="legend-dot one-time-dot"></i> Unique</span>
                 <span><i class="legend-dot weekly-dot"></i> Hebdomadaire</span>
+                <span><i class="legend-dot biweekly-dot"></i> Aux 2 semaines</span>
                 <span><i class="legend-dot monthly-dot"></i> Mensuelle</span>
             </div>
 
             <p class="helper-text">
-                Le calendrier se met automatiquement à jour lorsque vous changez de mois. Les paiements récurrents y sont ajoutés à leurs dates prévues.
+                Utilisez les flèches pour consulter les mois. Les paiements hebdomadaires, aux 2 semaines et mensuels sont automatiquement répétés aux bonnes dates.
             </p>
         </section>
 
