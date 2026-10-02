@@ -1,67 +1,54 @@
-/* Reset et base */
 * {
+    box-sizing: border-box;
     margin: 0;
     padding: 0;
-    box-sizing: border-box;
 }
 
 body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: #1F2937;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
     min-height: 100vh;
     padding: 20px;
-    color: #1f2937;
 }
 
 .app-container {
-    max-width: 600px;
     margin: 0 auto;
+    max-width: 760px;
 }
 
-/* Header */
 .header {
-    text-align: center;
-    color: white;
+    color: #FFFFFF;
     margin-bottom: 24px;
+    text-align: center;
 }
 
 .header h1 {
     font-size: 2rem;
     margin-bottom: 8px;
-    text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 .subtitle {
-    font-size: 0.9rem;
-    opacity: 0.9;
+    font-size: 0.95rem;
+    opacity: 0.92;
 }
 
-/* Cards */
 .card {
-    background: white;
+    animation: slideIn 0.3s ease-out;
+    background: #FFFFFF;
     border-radius: 16px;
-    padding: 20px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.12);
     margin-bottom: 20px;
-    box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+    padding: 20px;
 }
 
 .card h2 {
+    color: #1F2937;
     font-size: 1.25rem;
     margin-bottom: 16px;
-    color: #1f2937;
 }
 
-.highlight-card {
-    background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%);
-    color: white;
-}
-
-.highlight-card h2,
-.highlight-card p {
-    color: white;
-}
-
-/* Permissions */
 .permissions-card {
     background: #FEF3C7;
     border: 2px solid #F59E0B;
@@ -74,12 +61,12 @@ body {
 }
 
 .permission-item {
-    display: flex;
     align-items: center;
+    background: #FFFFFF;
+    border-radius: 10px;
+    display: flex;
     gap: 12px;
     padding: 12px;
-    background: white;
-    border-radius: 8px;
 }
 
 .permission-item .icon {
@@ -92,110 +79,101 @@ body {
 }
 
 .permission-item p {
-    font-size: 0.85rem;
     color: #6B7280;
+    font-size: 0.85rem;
 }
 
-/* Formulaires */
 .form-group {
     margin-bottom: 16px;
 }
 
 .form-group label {
     display: block;
+    font-weight: 600;
     margin-bottom: 8px;
-    font-weight: 500;
 }
 
 .form-group input,
 .form-group select {
-    width: 100%;
-    padding: 12px 16px;
+    background: #FFFFFF;
     border: 2px solid #E5E7EB;
     border-radius: 8px;
+    color: #1F2937;
     font-size: 1rem;
+    padding: 12px 14px;
     transition: border-color 0.2s;
+    width: 100%;
 }
 
 .form-group input:focus,
 .form-group select:focus {
-    outline: none;
     border-color: #4F46E5;
+    outline: none;
 }
 
 .form-row {
     display: flex;
     gap: 12px;
-    margin-bottom: 12px;
 }
 
-.form-row .flex-1 {
+.flex-1 {
     flex: 1;
 }
 
 .helper-text {
-    font-size: 0.85rem;
     color: #6B7280;
-    margin-top: 8px;
+    font-size: 0.85rem;
+    line-height: 1.4;
+    margin-top: 10px;
 }
 
-/* Buttons */
 .btn {
-    padding: 12px 24px;
     border: none;
     border-radius: 8px;
-    font-size: 1rem;
-    font-weight: 500;
     cursor: pointer;
-    transition: all 0.2s;
+    font-size: 1rem;
+    font-weight: 600;
+    padding: 12px 20px;
+    transition: all 0.2s ease;
     width: 100%;
 }
 
 .btn-primary {
     background: #4F46E5;
-    color: white;
+    color: #FFFFFF;
 }
 
 .btn-primary:hover {
     background: #4338CA;
-    transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(79, 70, 229, 0.4);
-}
-
-.btn-secondary {
-    background: white;
-    color: #4F46E5;
-    border: 2px solid #4F46E5;
-}
-
-.btn-secondary:hover {
-    background: #4F46E5;
-    color: white;
+    transform: translateY(-1px);
 }
 
 .btn-small {
-    padding: 8px 16px;
     font-size: 0.85rem;
+    margin-left: auto;
+    padding: 8px 14px;
     width: auto;
 }
 
 .btn-text {
     background: transparent;
-    color: #EF4444;
+    color: #DC2626;
+    margin-top: 10px;
     padding: 8px 0;
+    text-align: left;
 }
 
 .btn-text:hover {
     text-decoration: underline;
 }
 
-/* Budget Cards */
 .budget-card {
     background: #F9FAFB;
-    border-radius: 12px;
-    padding: 16px;
-    margin-bottom: 16px;
     border-left: 4px solid #4F46E5;
+    border-radius: 12px;
+    margin-bottom: 16px;
+    padding: 16px;
 }
 
 .budget-card.weekly {
@@ -207,57 +185,57 @@ body {
 }
 
 .budget-header {
+    align-items: center;
     display: flex;
     justify-content: space-between;
-    align-items: center;
     margin-bottom: 12px;
 }
 
 .budget-header h3 {
     font-size: 1rem;
-    font-weight: 600;
 }
 
 .budget-percent {
     background: #4F46E5;
-    color: white;
-    padding: 4px 12px;
     border-radius: 20px;
+    color: #FFFFFF;
     font-size: 0.85rem;
-    font-weight: 600;
+    font-weight: 700;
+    padding: 4px 12px;
 }
 
 .budget-amounts {
+    align-items: center;
     display: flex;
     justify-content: space-between;
-    align-items: center;
     margin-bottom: 12px;
 }
 
 .budget-amounts .spent {
+    color: #1F2937;
     font-size: 1.5rem;
-    font-weight: 700;
-    color: #1f2937;
+    font-weight: 800;
 }
 
 .budget-amounts .total {
-    font-size: 1rem;
     color: #6B7280;
+    font-size: 1rem;
 }
 
 .progress-bar {
-    height: 12px;
     background: #E5E7EB;
     border-radius: 6px;
-    overflow: hidden;
+    height: 12px;
     margin-bottom: 8px;
+    overflow: hidden;
 }
 
 .progress-fill {
-    height: 100%;
     background: linear-gradient(90deg, #10B981 0%, #4F46E5 100%);
     border-radius: 6px;
+    height: 100%;
     transition: width 0.3s ease, background 0.3s ease;
+    width: 0;
 }
 
 .progress-fill.warning {
@@ -271,30 +249,30 @@ body {
 .budget-footer {
     display: flex;
     justify-content: space-between;
-    align-items: center;
 }
 
 .remaining {
+    color: #4B5563;
     font-size: 0.9rem;
-    font-weight: 600;
+    font-weight: 700;
 }
 
 .remaining.negative {
-    color: #EF4444;
+    color: #DC2626;
 }
 
-/* Transactions List */
 .transactions-list {
-    max-height: 400px;
+    max-height: 420px;
     overflow-y: auto;
 }
 
 .transaction-item {
-    display: flex;
-    justify-content: space-between;
     align-items: center;
-    padding: 12px;
     border-bottom: 1px solid #E5E7EB;
+    display: flex;
+    gap: 12px;
+    justify-content: space-between;
+    padding: 12px 4px;
 }
 
 .transaction-item:last-child {
@@ -303,144 +281,80 @@ body {
 
 .transaction-info {
     flex: 1;
+    min-width: 0;
 }
 
 .transaction-merchant {
-    font-weight: 600;
+    font-weight: 700;
     margin-bottom: 4px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .transaction-meta {
-    font-size: 0.85rem;
     color: #6B7280;
+    font-size: 0.8rem;
+    line-height: 1.35;
 }
 
 .transaction-amount {
-    font-weight: 700;
-    color: #EF4444;
-    font-size: 1.1rem;
+    color: #DC2626;
+    font-size: 1rem;
+    font-weight: 800;
+    white-space: nowrap;
 }
 
 .empty-state {
-    text-align: center;
     color: #9CA3AF;
-    padding: 40px 20px;
+    padding: 28px 12px;
+    text-align: center;
 }
 
-/* Category Stats */
 .category-stats {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
     gap: 12px;
+    grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
 }
 
 .category-stat {
     background: #F9FAFB;
+    border-radius: 10px;
     padding: 12px;
-    border-radius: 8px;
     text-align: center;
 }
 
 .category-stat .icon {
-    font-size: 2rem;
-    margin-bottom: 8px;
+    font-size: 1.8rem;
+    margin-bottom: 6px;
 }
 
 .category-stat .name {
-    font-size: 0.85rem;
     color: #6B7280;
+    font-size: 0.8rem;
     margin-bottom: 4px;
 }
 
 .category-stat .amount {
-    font-weight: 700;
-    font-size: 1.1rem;
+    font-size: 1.05rem;
+    font-weight: 800;
 }
 
 .category-stat .percent {
-    font-size: 0.75rem;
     color: #9CA3AF;
+    font-size: 0.75rem;
+    margin-top: 4px;
 }
 
-/* Responsive */
-@media (max-width: 480px) {
-    body {
-        padding: 12px;
-    }
-    
-    .header h1 {
-        font-size: 1.5rem;
-    }
-    
-    .form-row {
-        flex-direction: column;
-    }
-    
-    .budget-amounts .spent {
-        font-size: 1.25rem;
-    }
-}
-
-/* Animations */
-@keyframes slideIn {
-    from {
-        opacity: 0;
-        transform: translateY(20px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-.card {
-    animation: slideIn 0.3s ease-out;
-}
-
-/* Dark mode support */
-@media (prefers-color-scheme: dark) {
-    body {
-        background: linear-gradient(135deg, #1e1e2e 0%, #2d1b4e 100%);
-    }
-    
-    .card {
-        background: #2d2d44;
-        color: #e0e0e0;
-    }
-    
-    .card h2 {
-        color: #e0e0e0;
-    }
-    
-    .budget-card {
-        background: #3d3d5c;
-    }
-    
-    .form-group input,
-    .form-group select {
-        background: #3d3d5c;
-        border-color: #4d4d6a;
-        color: #e0e0e0;
-    }
-    
-    .transaction-item {
-        border-bottom-color: #4d4d6a;
-    }
-    
-    .category-stat {
-        background: #3d3d5c;
-    }
-}
-/* Calendrier des paiements */
 .calendar-card {
     overflow: hidden;
 }
 
 .calendar-header {
-    display: flex;
     align-items: center;
-    justify-content: space-between;
+    display: flex;
     gap: 12px;
+    justify-content: space-between;
     margin-bottom: 16px;
 }
 
@@ -557,6 +471,12 @@ body {
     color: #14532D;
 }
 
+.calendar-payment.biweekly {
+    background: #FCE7F3;
+    border-left-color: #EC4899;
+    color: #831843;
+}
+
 .calendar-payment.monthly {
     background: #E0E7FF;
     border-left-color: #4F46E5;
@@ -615,11 +535,44 @@ body {
     background: #10B981;
 }
 
+.biweekly-dot {
+    background: #EC4899;
+}
+
 .monthly-dot {
     background: #4F46E5;
 }
 
-@media (max-width: 480px) {
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(14px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@media (max-width: 560px) {
+    body {
+        padding: 12px;
+    }
+
+    .header h1 {
+        font-size: 1.6rem;
+    }
+
+    .card {
+        padding: 16px;
+    }
+
+    .form-row {
+        flex-direction: column;
+        gap: 0;
+    }
+
     .calendar-day {
         min-height: 88px;
         padding: 3px;
@@ -642,18 +595,80 @@ body {
     .calendar-weekdays {
         font-size: 0.58rem;
     }
+
+    .calendar-legend {
+        gap: 8px;
+    }
+
+    .calendar-legend span {
+        font-size: 0.7rem;
+    }
 }
 
 @media (prefers-color-scheme: dark) {
+    body {
+        background: linear-gradient(135deg, #1E1E2E 0%, #2D1B4E 100%);
+        color: #E5E7EB;
+    }
+
+    .card {
+        background: #2D2D44;
+        color: #E5E7EB;
+    }
+
+    .card h2 {
+        color: #F3F4F6;
+    }
+
+    .permissions-card {
+        background: #4A3C1D;
+        border-color: #B7791F;
+    }
+
+    .permission-item,
     .calendar-day {
         background: #3D3D5C;
+    }
+
+    .permission-item p,
+    .helper-text,
+    .calendar-summary,
+    .transaction-meta,
+    .calendar-weekdays {
+        color: #D1D5DB;
+    }
+
+    .form-group input,
+    .form-group select {
+        background: #3D3D5C;
+        border-color: #4D4D6A;
+        color: #F3F4F6;
+    }
+
+    .budget-card,
+    .category-stat {
+        background: #3D3D5C;
+    }
+
+    .budget-amounts .spent,
+    .calendar-day-number,
+    .calendar-day-total {
+        color: #F3F4F6;
+    }
+
+    .transaction-item,
+    .calendar-weekdays {
         border-bottom-color: #4D4D6A;
-        border-right-color: #4D4D6A;
     }
 
     .calendar-grid {
         border-left-color: #4D4D6A;
         border-top-color: #4D4D6A;
+    }
+
+    .calendar-day {
+        border-bottom-color: #4D4D6A;
+        border-right-color: #4D4D6A;
     }
 
     .calendar-day.empty-day {
@@ -662,20 +677,6 @@ body {
 
     .calendar-day.today {
         background: #37306B;
-    }
-
-    .calendar-day-number,
-    .calendar-day-total {
-        color: #F3F4F6;
-    }
-
-    .calendar-weekdays {
-        border-bottom-color: #4D4D6A;
-        color: #D1D5DB;
-    }
-
-    .calendar-summary {
-        color: #D1D5DB;
     }
 
     .calendar-nav-button {
