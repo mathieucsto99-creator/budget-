@@ -276,6 +276,7 @@ function renderCalendar() {
     for (let day = 1; day <= daysInMonth; day += 1) {
         const dateKey = getDateKey(year, month, day);
         const scheduledTransactions = transactionsByDate[dateKey] || [];
+
         const isToday = isSameDate(
             new Date(year, month, day),
             new Date()
@@ -403,6 +404,14 @@ function getOccurrenceDatesInPeriod(transaction, periodStart, periodEnd) {
         );
     }
 
+    if (transaction.frequency === 'biweekly') {
+        return getBiweeklyOccurrenceDates(
+            transactionStartDate,
+            periodStart,
+            periodEnd
+        );
+    }
+
     if (transaction.frequency === 'monthly') {
         return getMonthlyOccurrenceDates(
             transactionStartDate,
@@ -427,6 +436,24 @@ function getWeeklyOccurrenceDates(startDate, periodStart, periodEnd) {
     while (occurrence <= periodEnd) {
         occurrences.push(new Date(occurrence));
         occurrence.setDate(occurrence.getDate() + 7);
+    }
+
+    return occurrences;
+}
+
+function getBiweeklyOccurrenceDates(startDate, periodStart, periodEnd) {
+    const occurrence = new Date(startDate);
+    occurrence.setHours(12, 0, 0, 0);
+
+    while (occurrence < periodStart) {
+        occurrence.setDate(occurrence.getDate() + 14);
+    }
+
+    const occurrences = [];
+
+    while (occurrence <= periodEnd) {
+        occurrences.push(new Date(occurrence));
+        occurrence.setDate(occurrence.getDate() + 14);
     }
 
     return occurrences;
@@ -854,6 +881,7 @@ function getFrequencyLabel(frequency) {
     const labels = {
         'one-time': 'Unique',
         weekly: 'Hebdomadaire',
+        biweekly: 'Aux 2 semaines',
         monthly: 'Mensuelle'
     };
 
