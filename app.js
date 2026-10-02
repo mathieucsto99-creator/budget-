@@ -110,7 +110,7 @@ function addPayment() {
             !categoryInput
         ) {
             alert(
-                'Un champ du formulaire est introuvable. Vérifiez que index.html a été remplacé correctement.'
+                'Un champ du formulaire est introuvable. Vérifiez que index.html est complet.'
             );
             return;
         }
@@ -131,7 +131,7 @@ function addPayment() {
             return;
         }
 
-        const payment = {
+        AppState.payments.unshift({
             id: createId(),
             amount: amount,
             merchant: merchant,
@@ -139,9 +139,7 @@ function addPayment() {
             date: date,
             frequency: frequency,
             timestamp: new Date().toISOString()
-        };
-
-        AppState.payments.unshift(payment);
+        });
 
         const paymentDate = dateFromString(date);
 
@@ -173,19 +171,17 @@ function deletePayment(paymentId) {
         return;
     }
 
-    const message = payment.frequency === 'one-time'
+    const recurringText = payment.frequency === 'one-time'
         ? ''
         : '\n\nToutes les répétitions futures seront aussi retirées.';
 
-    const confirmed = confirm(
+    if (!confirm(
         'Supprimer ce paiement ?\n\n' +
         payment.merchant +
         ' — ' +
         money(payment.amount) +
-        message
-    );
-
-    if (!confirmed) {
+        recurringText
+    )) {
         return;
     }
 
@@ -277,7 +273,6 @@ function renderCalendar() {
 
     const year = AppState.calendarDate.getFullYear();
     const month = AppState.calendarDate.getMonth();
-
     const start = new Date(year, month, 1, 12, 0, 0, 0);
     const end = new Date(year, month + 1, 0, 12, 0, 0, 0);
 
@@ -295,13 +290,12 @@ function renderCalendar() {
 
     const cells = [];
     const firstWeekday = mondayWeekday(start);
-    const daysInMonth = end.getDate();
 
     for (let index = 0; index < firstWeekday; index += 1) {
         cells.push('<div class="calendar-day empty-day"></div>');
     }
 
-    for (let day = 1; day <= daysInMonth; day += 1) {
+    for (let day = 1; day <= end.getDate(); day += 1) {
         const key = dateKey(year, month, day);
 
         const dayPayments = (paymentsByDay[key] || [])
@@ -535,11 +529,12 @@ function renderCategoryStats() {
 function exportPrintableReport() {
     const year = AppState.calendarDate.getFullYear();
     const month = AppState.calendarDate.getMonth();
-
     const monthStart = new Date(year, month, 1, 12, 0, 0, 0);
+
     const paymentsByDay = paymentsForMonth(year, month);
 
-    const allPayments = Object.values(paymentsByDay).flat();
+    const allPayments = Object.values(paymentsByDay)
+        .flat();
 
     if (allPayments.length === 0) {
         alert(
@@ -550,215 +545,4 @@ function exportPrintableReport() {
         return;
     }
 
-    const monthTotal = allPayments.reduce(function (sum, payment) {
-        return sum + payment.amount;
-    }, 0);
-
-    const detailedList = Object.entries(paymentsByDay)
-        .sort(function (first, second) {
-            return dateFromString(first[0]) - dateFromString(second[0]);
-        })
-        .map(function (entry) {
-            const date = entry[0];
-            const payments = entry[1].sort(function (first, second) {
-                return second.amount - first.amount;
-            });
-
-            const dayTotal = payments.reduce(function (sum, payment) {
-                return sum + payment.amount;
-            }, 0);
-
-            const paymentRows = payments.map(function (payment) {
-                return (
-                    '<li>' +
-                        '<strong>' + html(payment.merchant) + '</strong>' +
-                        ' — ' + html(money(payment.amount)) +
-                        ' <span class="badge ' + payment.frequency + '">' +
-                            html(frequencyName(payment.frequency)) +
-                        '</span>' +
-                        '<br><span class="details">' +
-                            html(categoryIcon(payment.category) + ' ' + categoryName(payment.category)) +
-                        '</span>' +
-                    '</li>'
-                );
-            }).join('');
-
-            return (
-                '<section class="day-section">' +
-                    '<div class="day-header">' +
-                        '<h3>' + html(dateLabel(date)) + '</h3>' +
-                        '<strong>Total : ' + html(money(dayTotal)) + '</strong>' +
-                    '</div>' +
-                    '<ul>' + paymentRows + '</ul>' +
-                '</section>'
-            );
-        })
-        .join('');
-
-    const calendarHtml = printableCalendar(year, month, paymentsByDay);
-
-    const reportWindow = window.open('', '_blank');
-
-    if (!reportWindow) {
-        alert(
-            'Le navigateur a bloqué la fenêtre du rapport. Autorisez les fenêtres pop-up pour ce site et réessayez.'
-        );
-        return;
-    }
-
-    reportWindow.document.open();
-    reportWindow.document.write(
-        '<!DOCTYPE html>' +
-        '<html lang="fr-CA">' +
-        '<head>' +
-            '<meta charset="UTF-8">' +
-            '<title>Budget - ' + html(monthTitle(monthStart)) + '</title>' +
-            '<style>' +
-                '* { box-sizing: border-box; }' +
-                'body { color: #111827; font-family: Arial, Helvetica, sans-serif; margin: 0; padding: 24px; }' +
-                'h1 { color: #312E81; margin: 0 0 4px; }' +
-                'h2 { color: #312E81; margin: 28px 0 12px; }' +
-                '.subtitle { color: #4B5563; margin: 0 0 18px; }' +
-                '.summary { background: #EEF2FF; border-left: 5px solid #4F46E5; border-radius: 8px; display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 20px; padding: 16px; }' +
-                '.summary-item { min-width: 160px; }' +
-                '.summary-label { color: #4B5563; display: block; font-size: 12px; margin-bottom: 4px; text-transform: uppercase; }' +
-                '.summary-value { font-size: 18px; font-weight: 700; }' +
-                '.print-button { background: #0F766E; border: none; border-radius: 6px; color: white; cursor: pointer; font-size: 16px; font-weight: 700; margin-bottom: 20px; padding: 12px 18px; }' +
-                '.calendar { border-left: 1px solid #9CA3AF; border-top: 1px solid #9CA3AF; display: grid; grid-template-columns: repeat(7, 1fr); margin-bottom: 28px; }' +
-                '.weekday { background: #EDE9FE; border-bottom: 1px solid #9CA3AF; border-right: 1px solid #9CA3AF; font-size: 12px; font-weight: 700; padding: 8px 4px; text-align: center; }' +
-                '.day { border-bottom: 1px solid #9CA3AF; border-right: 1px solid #9CA3AF; min-height: 115px; padding: 6px; }' +
-                '.empty-day { background: #F9FAFB; }' +
-                '.day-number { font-weight: 700; margin-bottom: 5px; }' +
-                '.calendar-payment { border-left: 4px solid #6B7280; border-radius: 3px; font-size: 10px; line-height: 1.3; margin-bottom: 4px; padding: 3px; word-break: break-word; }' +
-                '.calendar-payment.one-time { background: #FEF3C7; border-left-color: #F59E0B; }' +
-                '.calendar-payment.weekly { background: #DCFCE7; border-left-color: #10B981; }' +
-                '.calendar-payment.biweekly { background: #FCE7F3; border-left-color: #DB2777; }' +
-                '.calendar-payment.monthly { background: #E0E7FF; border-left-color: #4F46E5; }' +
-                '.day-total { font-size: 10px; font-weight: 700; margin-top: 4px; }' +
-                '.day-section { border: 1px solid #D1D5DB; border-radius: 8px; break-inside: avoid; margin-bottom: 12px; padding: 14px; }' +
-                '.day-header { align-items: center; border-bottom: 1px solid #E5E7EB; display: flex; gap: 12px; justify-content: space-between; margin-bottom: 8px; padding-bottom: 8px; }' +
-                '.day-header h3 { margin: 0; }' +
-                'ul { margin: 0; padding-left: 20px; }' +
-                'li { margin-bottom: 8px; }' +
-                '.details { color: #4B5563; font-size: 13px; }' +
-                '.badge { border-radius: 12px; color: #111827; font-size: 11px; font-weight: 700; padding: 2px 7px; }' +
-                '.badge.one-time { background: #FEF3C7; }' +
-                '.badge.weekly { background: #DCFCE7; }' +
-                '.badge.biweekly { background: #FCE7F3; }' +
-                '.badge.monthly { background: #E0E7FF; }' +
-                '.footer { color: #6B7280; font-size: 12px; margin-top: 24px; }' +
-                '@media print { body { padding: 10mm; } .print-button { display: none; } .calendar { break-inside: avoid; } @page { margin: 10mm; size: landscape; } }' +
-            '</style>' +
-        '</head>' +
-        '<body>' +
-            '<h1>Budget Automatisé</h1>' +
-            '<p class="subtitle">Rapport des paiements — ' +
-                html(monthTitle(monthStart)) +
-            '</p>' +
-            '<button class="print-button" onclick="window.print()">' +
-                '🖨️ Imprimer ou enregistrer en PDF' +
-            '</button>' +
-            '<div class="summary">' +
-                '<div class="summary-item">' +
-                    '<span class="summary-label">Mois</span>' +
-                    '<span class="summary-value">' +
-                        html(monthTitle(monthStart)) +
-                    '</span>' +
-                '</div>' +
-                '<div class="summary-item">' +
-                    '<span class="summary-label">Paiements prévus</span>' +
-                    '<span class="summary-value">' +
-                        allPayments.length +
-                    '</span>' +
-                '</div>' +
-                '<div class="summary-item">' +
-                    '<span class="summary-label">Total planifié</span>' +
-                    '<span class="summary-value">' +
-                        html(money(monthTotal)) +
-                    '</span>' +
-                '</div>' +
-                '<div class="summary-item">' +
-                    '<span class="summary-label">Budget mensuel</span>' +
-                    '<span class="summary-value">' +
-                        html(money(AppState.monthlyBudget)) +
-                    '</span>' +
-                '</div>' +
-            '</div>' +
-            '<h2>Calendrier du mois</h2>' +
-            calendarHtml +
-            '<h2>Tous les paiements prévus</h2>' +
-            detailedList +
-            '<p class="footer">Rapport généré le ' +
-                html(new Intl.DateTimeFormat('fr-CA', {
-                    day: '2-digit',
-                    month: 'long',
-                    year: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit'
-                }).format(new Date())) +
-            '.</p>' +
-        '</body>' +
-        '</html>'
-    );
-
-    reportWindow.document.close();
-    reportWindow.focus();
-}
-
-function printableCalendar(year, month, paymentsByDay) {
-    const start = new Date(year, month, 1, 12, 0, 0, 0);
-    const end = new Date(year, month + 1, 0, 12, 0, 0, 0);
-    const weekdays = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
-
-    let output = '<div class="calendar">';
-
-    weekdays.forEach(function (weekday) {
-        output += '<div class="weekday">' + weekday + '</div>';
-    });
-
-    const firstWeekday = mondayWeekday(start);
-
-    for (let index = 0; index < firstWeekday; index += 1) {
-        output += '<div class="day empty-day"></div>';
-    }
-
-    for (let day = 1; day <= end.getDate(); day += 1) {
-        const key = dateKey(year, month, day);
-
-        const payments = (paymentsByDay[key] || [])
-            .sort(function (first, second) {
-                return second.amount - first.amount;
-            });
-
-        const paymentHtml = payments.map(function (payment) {
-            return (
-                '<div class="calendar-payment ' + payment.frequency + '">' +
-                    '<strong>' + html(payment.merchant) + '</strong><br>' +
-                    html(money(payment.amount)) +
-                '</div>'
-            );
-        }).join('');
-
-        const total = payments.reduce(function (sum, payment) {
-            return sum + payment.amount;
-        }, 0);
-
-        const totalHtml = payments.length > 0
-            ? '<div class="day-total">Total : ' + html(money(total)) + '</div>'
-            : '';
-
-        output += (
-            '<div class="day">' +
-                '<div class="day-number">' + day + '</div>' +
-                paymentHtml +
-                totalHtml +
-            '</div>'
-        );
-    }
-
-    const usedCells = firstWeekday + end.getDate();
-    const missingCells = usedCells % 7 === 0
-        ? 0
-        : 7 - (usedCells % 7);
-
-    for (let index = 0; index < missingCells; index += 1)
+    const monthTotal
