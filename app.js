@@ -1,7 +1,8 @@
 const AppState = {
     monthlyBudget: 0,
     weeklyBudget: 0,
-    transactions: []
+    transactions: [],
+    calendarDate: getFirstDayOfMonth(new Date())
 };
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -136,6 +137,16 @@ function addManualExpense() {
     AppState.transactions.unshift(transaction);
 
     saveToStorage();
+
+    const transactionDate = dateFromInput(date);
+
+    if (
+        transactionDate.getFullYear() !== AppState.calendarDate.getFullYear() ||
+        transactionDate.getMonth() !== AppState.calendarDate.getMonth()
+    ) {
+        AppState.calendarDate = getFirstDayOfMonth(transactionDate);
+    }
+
     updateUI();
     checkBudgetAlerts();
 
@@ -151,6 +162,20 @@ function addManualExpense() {
         'Date : ' + formatDateOnly(date) + '\n' +
         'Fréquence : ' + getFrequencyLabel(frequency)
     );
+}
+
+function changeCalendarMonth(direction) {
+    AppState.calendarDate = new Date(
+        AppState.calendarDate.getFullYear(),
+        AppState.calendarDate.getMonth() + direction,
+        1,
+        12,
+        0,
+        0,
+        0
+    );
+
+    renderCalendar();
 }
 
 function updateUI() {
@@ -198,6 +223,7 @@ function updateUI() {
         AppState.weeklyBudget - weeklySpent
     );
 
+    renderCalendar();
     renderTransactions();
     renderCategoryStats();
 }
@@ -208,6 +234,130 @@ function updateText(elementId, value) {
     if (element) {
         element.textContent = value;
     }
+}
+
+function renderCalendar() {
+    const calendarGrid = document.getElementById('calendarGrid');
+    const calendarTitle = document.getElementById('calendarTitle');
+    const calendarSummary = document.getElementById('calendarSummary');
+
+    if (!calendarGrid || !calendarTitle || !calendarSummary) {
+        return;
+    }
+
+    const year = AppState.calendarDate.getFullYear();
+    const month = AppState.calendarDate.getMonth();
+
+    const firstDayOfMonth = new Date(year, month, 1, 12, 0, 0, 0);
+    const lastDayOfMonth = new Date(year, month + 1, 0, 12, 0, 0, 0);
+
+    calendarTitle.textContent = new Intl.DateTimeFormat('fr-CA', {
+        month: 'long',
+        year: 'numeric'
+    }).format(firstDayOfMonth);
+
+    const transactionsByDate = getTransactionsForMonth(year, month);
+
+    const monthTotal = Object.values(transactionsByDate)
+        .flat()
+        .reduce((total, transaction) => total + transaction.amount, 0);
+
+    calendarSummary.textContent =
+        formatMoney(monthTotal) + ' planifié ce mois-ci';
+
+    const firstWeekday = getMondayBasedWeekday(firstDayOfMonth);
+    const daysInMonth = lastDayOfMonth.getDate();
+    const cells = [];
+
+    for (let emptyCell = 0; emptyCell < firstWeekday; emptyCell += 1) {
+        cells.push('<div class="calendar-day empty-day" aria-hidden="true"></div>');
+    }
+
+    for (let day = 1; day <= daysInMonth; day += 1) {
+        const dateKey = getDateKey(year, month, day);
+        const scheduledTransactions = transactionsByDate[dateKey] || [];
+        const isToday = isSameDate(
+            new Date(year, month, day),
+            new Date()
+        );
+
+        const totalForDay = scheduledTransactions.reduce(
+            (total, transaction) => total + transaction.amount,
+            0
+        );
+
+        const paymentsHtml = scheduledTransactions
+            .sort((a, b) => b.amount - a.amount)
+            .map(transaction => {
+                return `
+                    <div class="calendar-payment ${transaction.frequency}">
+                        <span class="calendar-payment-name">
+                            ${escapeHtml(transaction.merchant)}
+                        </span>
+                        <span class="calendar-payment-amount">
+                            ${formatCompactMoney(transaction.amount)}
+                        </span>
+                    </div>
+                `;
+            })
+            .join('');
+
+        const dayTotalHtml = scheduledTransactions.length > 0
+            ? `<div class="calendar-day-total">${formatCompactMoney(totalForDay)}</div>`
+            : '';
+
+        cells.push(`
+            <div class="calendar-day ${isToday ? 'today' : ''}">
+                <div class="calendar-day-number">${day}</div>
+                ${paymentsHtml}
+                ${dayTotalHtml}
+            </div>
+        `);
+    }
+
+    const totalCells = cells.length;
+    const trailingCells = totalCells % 7 === 0
+        ? 0
+        : 7 - (totalCells % 7);
+
+    for (let emptyCell = 0; emptyCell < trailingCells; emptyCell += 1) {
+        cells.push('<div class="calendar-day empty-day" aria-hidden="true"></div>');
+    }
+
+    calendarGrid.innerHTML = cells.join('');
+}
+
+function getTransactionsForMonth(year, month) {
+    const firstDayOfMonth = new Date(year, month, 1, 12, 0, 0, 0);
+    const lastDayOfMonth = new Date(year, month + 1, 0, 12, 0, 0, 0);
+    const transactionsByDate = {};
+
+    AppState.transactions.forEach(transaction => {
+        const occurrences = getOccurrenceDatesInPeriod(
+            transaction,
+            firstDayOfMonth,
+            lastDayOfMonth
+        );
+
+        occurrences.forEach(occurrenceDate => {
+            const dateKey = getDateKey(
+                occurrenceDate.getFullYear(),
+                occurrenceDate.getMonth(),
+                occurrenceDate.getDate()
+            );
+
+            if (!transactionsByDate[dateKey]) {
+                transactionsByDate[dateKey] = [];
+            }
+
+            transactionsByDate[dateKey].push({
+                ...transaction,
+                occurrenceDate: occurrenceDate
+            });
+        });
+    });
+
+    return transactionsByDate;
 }
 
 function getPeriodSpent(periodStart, periodEnd) {
@@ -223,21 +373,30 @@ function getPeriodSpent(periodStart, periodEnd) {
 }
 
 function getOccurrencesInPeriod(transaction, periodStart, periodEnd) {
+    return getOccurrenceDatesInPeriod(
+        transaction,
+        periodStart,
+        periodEnd
+    ).length;
+}
+
+function getOccurrenceDatesInPeriod(transaction, periodStart, periodEnd) {
     const transactionStartDate = dateFromInput(transaction.date);
 
     if (!transactionStartDate || transactionStartDate > periodEnd) {
-        return 0;
+        return [];
     }
 
     if (transaction.frequency === 'one-time') {
-        return (
+        const isInPeriod =
             transactionStartDate >= periodStart &&
-            transactionStartDate <= periodEnd
-        ) ? 1 : 0;
+            transactionStartDate <= periodEnd;
+
+        return isInPeriod ? [transactionStartDate] : [];
     }
 
     if (transaction.frequency === 'weekly') {
-        return countWeeklyOccurrences(
+        return getWeeklyOccurrenceDates(
             transactionStartDate,
             periodStart,
             periodEnd
@@ -245,17 +404,17 @@ function getOccurrencesInPeriod(transaction, periodStart, periodEnd) {
     }
 
     if (transaction.frequency === 'monthly') {
-        return countMonthlyOccurrences(
+        return getMonthlyOccurrenceDates(
             transactionStartDate,
             periodStart,
             periodEnd
         );
     }
 
-    return 0;
+    return [];
 }
 
-function countWeeklyOccurrences(startDate, periodStart, periodEnd) {
+function getWeeklyOccurrenceDates(startDate, periodStart, periodEnd) {
     const occurrence = new Date(startDate);
     occurrence.setHours(12, 0, 0, 0);
 
@@ -263,17 +422,17 @@ function countWeeklyOccurrences(startDate, periodStart, periodEnd) {
         occurrence.setDate(occurrence.getDate() + 7);
     }
 
-    let count = 0;
+    const occurrences = [];
 
     while (occurrence <= periodEnd) {
-        count += 1;
+        occurrences.push(new Date(occurrence));
         occurrence.setDate(occurrence.getDate() + 7);
     }
 
-    return count;
+    return occurrences;
 }
 
-function countMonthlyOccurrences(startDate, periodStart, periodEnd) {
+function getMonthlyOccurrenceDates(startDate, periodStart, periodEnd) {
     let year = startDate.getFullYear();
     let month = startDate.getMonth();
     const dayOfMonth = startDate.getDate();
@@ -291,11 +450,11 @@ function countMonthlyOccurrences(startDate, periodStart, periodEnd) {
         occurrence = buildMonthlyOccurrence(year, month, dayOfMonth);
     }
 
-    let count = 0;
+    const occurrences = [];
 
     while (occurrence <= periodEnd) {
         if (occurrence >= startDate) {
-            count += 1;
+            occurrences.push(new Date(occurrence));
         }
 
         month += 1;
@@ -308,7 +467,7 @@ function countMonthlyOccurrences(startDate, periodStart, periodEnd) {
         occurrence = buildMonthlyOccurrence(year, month, dayOfMonth);
     }
 
-    return count;
+    return occurrences;
 }
 
 function buildMonthlyOccurrence(year, month, dayOfMonth) {
@@ -576,6 +735,18 @@ function dateFromInput(dateString) {
     return new Date(year, month - 1, day, 12, 0, 0, 0);
 }
 
+function getFirstDayOfMonth(date) {
+    return new Date(
+        date.getFullYear(),
+        date.getMonth(),
+        1,
+        12,
+        0,
+        0,
+        0
+    );
+}
+
 function getStartOfMonth(date) {
     return new Date(
         date.getFullYear(),
@@ -620,12 +791,32 @@ function getEndOfWeek(date) {
     return result;
 }
 
-function getLocalDateString(date) {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
+function getMondayBasedWeekday(date) {
+    return (date.getDay() + 6) % 7;
+}
 
-    return year + '-' + month + '-' + day;
+function getDateKey(year, month, day) {
+    return (
+        year + '-' +
+        String(month + 1).padStart(2, '0') + '-' +
+        String(day).padStart(2, '0')
+    );
+}
+
+function getLocalDateString(date) {
+    return getDateKey(
+        date.getFullYear(),
+        date.getMonth(),
+        date.getDate()
+    );
+}
+
+function isSameDate(dateA, dateB) {
+    return (
+        dateA.getFullYear() === dateB.getFullYear() &&
+        dateA.getMonth() === dateB.getMonth() &&
+        dateA.getDate() === dateB.getDate()
+    );
 }
 
 function formatMoney(amount) {
@@ -633,6 +824,16 @@ function formatMoney(amount) {
         style: 'currency',
         currency: 'CAD'
     }).format(amount);
+}
+
+function formatCompactMoney(amount) {
+    const formatted = new Intl.NumberFormat('fr-CA', {
+        style: 'currency',
+        currency: 'CAD',
+        maximumFractionDigits: 0
+    }).format(amount);
+
+    return formatted.replace(/\s/g, '');
 }
 
 function formatDateOnly(dateString) {
