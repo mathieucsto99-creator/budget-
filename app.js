@@ -1,139 +1,99 @@
 const AppState = {
     monthlyBudget: 0,
     weeklyBudget: 0,
-    transactions: [],
-    calendarDate: getFirstDayOfMonth(new Date())
+    payments: [],
+    calendarDate: firstDayOfMonth(new Date())
 };
 
 document.addEventListener('DOMContentLoaded', () => {
-    loadFromStorage();
+    loadData();
 
-    const monthlyBudgetInput = document.getElementById('monthlyBudget');
-    const expenseDateInput = document.getElementById('expenseDate');
+    document.getElementById('monthlyBudget').value =
+        AppState.monthlyBudget || '';
 
-    if (monthlyBudgetInput) {
-        monthlyBudgetInput.value = AppState.monthlyBudget || '';
-    }
+    document.getElementById('expenseDate').value =
+        localDateString(new Date());
 
-    if (expenseDateInput && !expenseDateInput.value) {
-        expenseDateInput.value = getLocalDateString(new Date());
-    }
-
-    updateUI();
-    checkNotificationPermission();
+    refreshApp();
 });
 
-function loadFromStorage() {
-    const savedData = localStorage.getItem('budgetApp');
+function loadData() {
+    const saved = localStorage.getItem('budgetApp');
 
-    if (!savedData) {
+    if (!saved) {
         return;
     }
 
     try {
-        const data = JSON.parse(savedData);
+        const data = JSON.parse(saved);
 
         AppState.monthlyBudget = Number(data.monthlyBudget) || 0;
         AppState.weeklyBudget = Number(data.weeklyBudget) || 0;
-        AppState.transactions = Array.isArray(data.transactions)
-            ? data.transactions
+
+        const oldPayments = data.payments || data.transactions || [];
+
+        AppState.payments = Array.isArray(oldPayments)
+            ? oldPayments.map((payment, index) => {
+                return {
+                    id: String(payment.id || createLegacyId(payment, index)),
+                    amount: Number(payment.amount) || 0,
+                    merchant: payment.merchant || 'Paiement sans nom',
+                    category: payment.category || 'other',
+                    date: payment.date || localDateString(
+                        new Date(payment.timestamp || new Date())
+                    ),
+                    frequency: validFrequency(payment.frequency),
+                    timestamp: payment.timestamp || new Date().toISOString()
+                };
+            })
             : [];
 
-        AppState.transactions = AppState.transactions.map((transaction, index) => {
-            return {
-                id: String(transaction.id || createStableId(transaction, index)),
-                amount: Number(transaction.amount) || 0,
-                merchant: transaction.merchant || 'Dépense sans nom',
-                category: transaction.category || 'other',
-                date: transaction.date || getLocalDateString(
-                    new Date(transaction.timestamp || new Date())
-                ),
-                frequency: normalizeFrequency(transaction.frequency),
-                timestamp: transaction.timestamp || new Date().toISOString(),
-                source: transaction.source || 'manual'
-            };
-        });
-
-        saveToStorage();
+        saveData();
     } catch (error) {
-        console.warn('Les données enregistrées ne peuvent pas être lues :', error);
-
         AppState.monthlyBudget = 0;
         AppState.weeklyBudget = 0;
-        AppState.transactions = [];
+        AppState.payments = [];
     }
 }
 
-function createStableId(transaction, index) {
-    const text = [
-        transaction.merchant || '',
-        transaction.amount || '',
-        transaction.date || '',
-        transaction.timestamp || '',
-        index
-    ].join('|');
-
-    let hash = 0;
-
-    for (let position = 0; position < text.length; position += 1) {
-        hash = ((hash << 5) - hash) + text.charCodeAt(position);
-        hash |= 0;
-    }
-
-    return 'legacy-' + Math.abs(hash) + '-' + Date.now() + '-' + index;
-}
-
-function normalizeFrequency(frequency) {
-    const allowedFrequencies = [
-        'one-time',
-        'weekly',
-        'biweekly',
-        'monthly'
-    ];
-
-    return allowedFrequencies.includes(frequency)
-        ? frequency
-        : 'one-time';
-}
-
-function saveToStorage() {
-    localStorage.setItem('budgetApp', JSON.stringify(AppState));
+function saveData() {
+    localStorage.setItem('budgetApp', JSON.stringify({
+        monthlyBudget: AppState.monthlyBudget,
+        weeklyBudget: AppState.weeklyBudget,
+        payments: AppState.payments
+    }));
 }
 
 function saveBudget() {
-    const budgetInput = document.getElementById('monthlyBudget');
-    const monthlyAmount = Number.parseFloat(budgetInput.value);
+    const amount = Number.parseFloat(
+        document.getElementById('monthlyBudget').value
+    );
 
-    if (!Number.isFinite(monthlyAmount) || monthlyAmount <= 0) {
+    if (!Number.isFinite(amount) || amount <= 0) {
         alert('Veuillez entrer un budget mensuel valide.');
         return;
     }
 
-    AppState.monthlyBudget = monthlyAmount;
-    AppState.weeklyBudget = monthlyAmount / 4.33;
+    AppState.monthlyBudget = amount;
+    AppState.weeklyBudget = amount / 4.33;
 
-    saveToStorage();
-    updateUI();
-
-    alert(
-        'Budget enregistré.\n\n' +
-        'Budget mensuel : ' + formatMoney(AppState.monthlyBudget) + '\n' +
-        'Budget hebdomadaire estimé : ' + formatMoney(AppState.weeklyBudget)
-    );
+    saveData();
+    refreshApp();
 }
 
-function addManualExpense() {
-    const amountInput = document.getElementById('expenseAmount');
-    const merchantInput = document.getElementById('expenseMerchant');
-    const dateInput = document.getElementById('expenseDate');
-    const frequencyInput = document.getElementById('expenseFrequency');
-    const categoryInput = document.getElementById('expenseCategory');
+function addPayment() {
+    const amount = Number.parseFloat(
+        document.getElementById('expenseAmount').value
+    );
 
-    const amount = Number.parseFloat(amountInput.value);
-    const merchant = merchantInput.value.trim() || 'Dépense sans nom';
-    const date = dateInput.value;
-    const frequency = normalizeFrequency(frequencyInput.value);
-    const category = categoryInput.value;
+    const merchant = document.getElementById('expenseMerchant').value.trim()
+        || 'Paiement sans nom';
+
+    const date = document.getElementById('expenseDate').value;
+    const frequency = validFrequency(
+        document.getElementById('expenseFrequency').value
+    );
+    const category = document.getElementById('expenseCategory').value;
 
     if (!Number.isFinite(amount) || amount <= 0) {
         alert('Veuillez entrer un montant valide.');
@@ -141,77 +101,81 @@ function addManualExpense() {
     }
 
     if (!date) {
-        alert('Veuillez sélectionner une date.');
+        alert('Veuillez choisir une date.');
         return;
     }
 
-    const transaction = {
+    AppState.payments.unshift({
         id: createId(),
         amount: amount,
         merchant: merchant,
         category: category,
         date: date,
         frequency: frequency,
-        timestamp: new Date().toISOString(),
-        source: 'manual'
-    };
-
-    AppState.transactions.unshift(transaction);
-    saveToStorage();
-
-    const transactionDate = dateFromInput(date);
-
-    if (
-        transactionDate.getFullYear() !== AppState.calendarDate.getFullYear() ||
-        transactionDate.getMonth() !== AppState.calendarDate.getMonth()
-    ) {
-        AppState.calendarDate = getFirstDayOfMonth(transactionDate);
-    }
-
-    updateUI();
-    checkBudgetAlerts();
-
-    amountInput.value = '';
-    merchantInput.value = '';
-    dateInput.value = getLocalDateString(new Date());
-    frequencyInput.value = 'one-time';
-    categoryInput.value = 'groceries';
-}
-
-function deleteTransaction(transactionId) {
-    const transaction = AppState.transactions.find(item => {
-        return String(item.id) === String(transactionId);
+        timestamp: new Date().toISOString()
     });
 
-    if (!transaction) {
-        alert('Ce paiement est introuvable. Actualisez la page puis réessayez.');
+    const paymentDate = dateFromString(date);
+
+    AppState.calendarDate = firstDayOfMonth(paymentDate);
+
+    saveData();
+    refreshApp();
+
+    document.getElementById('expenseAmount').value = '';
+    document.getElementById('expenseMerchant').value = '';
+    document.getElementById('expenseDate').value = localDateString(new Date());
+    document.getElementById('expenseFrequency').value = 'one-time';
+    document.getElementById('expenseCategory').value = 'groceries';
+}
+
+function deletePayment(paymentId) {
+    const payment = AppState.payments.find(item => {
+        return String(item.id) === String(paymentId);
+    });
+
+    if (!payment) {
+        alert('Paiement introuvable. Actualisez la page puis réessayez.');
         return;
     }
 
-    const recurringText = transaction.frequency === 'one-time'
+    const recurringMessage = payment.frequency === 'one-time'
         ? ''
-        : '\n\nComme ce paiement est récurrent, toutes ses répétitions seront retirées du calendrier.';
+        : '\n\nToutes les répétitions futures seront aussi retirées.';
 
     const confirmed = confirm(
         'Supprimer ce paiement ?\n\n' +
-        transaction.merchant +
+        payment.merchant +
         ' — ' +
-        formatMoney(transaction.amount) +
-        '\n' +
-        getFrequencyLabel(transaction.frequency) +
-        recurringText
+        money(payment.amount) +
+        recurringMessage
     );
 
     if (!confirmed) {
         return;
     }
 
-    AppState.transactions = AppState.transactions.filter(item => {
-        return String(item.id) !== String(transactionId);
+    AppState.payments = AppState.payments.filter(item => {
+        return String(item.id) !== String(paymentId);
     });
 
-    saveToStorage();
-    updateUI();
+    saveData();
+    refreshApp();
+}
+
+function clearAllPayments() {
+    const confirmed = confirm(
+        'Voulez-vous vraiment effacer tous les paiements ?'
+    );
+
+    if (!confirmed) {
+        return;
+    }
+
+    AppState.payments = [];
+
+    saveData();
+    refreshApp();
 }
 
 function changeCalendarMonth(direction) {
@@ -228,39 +192,39 @@ function changeCalendarMonth(direction) {
     renderCalendar();
 }
 
-function updateUI() {
+function refreshApp() {
+    renderBudget();
+    renderCalendar();
+    renderHistory();
+    renderCategoryStats();
+}
+
+function renderBudget() {
     const now = new Date();
 
-    const monthlySpent = getPeriodSpent(
-        getStartOfMonth(now),
-        getEndOfMonth(now)
+    const monthlySpent = spentInPeriod(
+        startOfMonth(now),
+        endOfMonth(now)
     );
 
-    const weeklySpent = getPeriodSpent(
-        getStartOfWeek(now),
-        getEndOfWeek(now)
+    const weeklySpent = spentInPeriod(
+        startOfWeek(now),
+        endOfWeek(now)
     );
 
-    updateText('monthlyTotal', formatMoney(AppState.monthlyBudget));
-    updateText('weeklyTotal', formatMoney(AppState.weeklyBudget));
-    updateText('monthlySpent', formatMoney(monthlySpent));
-    updateText('weeklySpent', formatMoney(weeklySpent));
+    setText('monthlyTotal', money(AppState.monthlyBudget));
+    setText('weeklyTotal', money(AppState.weeklyBudget));
+    setText('monthlySpent', money(monthlySpent));
+    setText('weeklySpent', money(weeklySpent));
 
-    const monthlyPercent = calculatePercent(
-        monthlySpent,
-        AppState.monthlyBudget
-    );
+    const monthlyPercent = percent(monthlySpent, AppState.monthlyBudget);
+    const weeklyPercent = percent(weeklySpent, AppState.weeklyBudget);
 
-    const weeklyPercent = calculatePercent(
-        weeklySpent,
-        AppState.weeklyBudget
-    );
+    setText('monthlyPercent', monthlyPercent + '%');
+    setText('weeklyPercent', weeklyPercent + '%');
 
-    updateText('monthlyPercent', monthlyPercent + '%');
-    updateText('weeklyPercent', weeklyPercent + '%');
-
-    updateProgressBar('monthly', monthlyPercent);
-    updateProgressBar('weekly', weeklyPercent);
+    updateBar('monthlyProgress', monthlyPercent);
+    updateBar('weeklyProgress', weeklyPercent);
 
     updateRemaining(
         'monthlyRemaining',
@@ -271,166 +235,143 @@ function updateUI() {
         'weeklyRemaining',
         AppState.weeklyBudget - weeklySpent
     );
-
-    renderCalendar();
-    renderTransactions();
-    renderCategoryStats();
-}
-
-function updateText(elementId, value) {
-    const element = document.getElementById(elementId);
-
-    if (element) {
-        element.textContent = value;
-    }
 }
 
 function renderCalendar() {
-    const calendarGrid = document.getElementById('calendarGrid');
-    const calendarTitle = document.getElementById('calendarTitle');
-    const calendarSummary = document.getElementById('calendarSummary');
-
-    if (!calendarGrid || !calendarTitle || !calendarSummary) {
-        return;
-    }
+    const grid = document.getElementById('calendarGrid');
+    const title = document.getElementById('calendarTitle');
+    const summary = document.getElementById('calendarSummary');
 
     const year = AppState.calendarDate.getFullYear();
     const month = AppState.calendarDate.getMonth();
 
-    const firstDayOfMonth = new Date(year, month, 1, 12, 0, 0, 0);
-    const lastDayOfMonth = new Date(year, month + 1, 0, 12, 0, 0, 0);
+    const start = new Date(year, month, 1, 12, 0, 0, 0);
+    const end = new Date(year, month + 1, 0, 12, 0, 0, 0);
 
-    calendarTitle.textContent = new Intl.DateTimeFormat('fr-CA', {
+    title.textContent = new Intl.DateTimeFormat('fr-CA', {
         month: 'long',
         year: 'numeric'
-    }).format(firstDayOfMonth);
+    }).format(start);
 
-    const transactionsByDate = getTransactionsForMonth(year, month);
+    const paymentsByDay = paymentsForMonth(year, month);
 
-    const monthTotal = Object.values(transactionsByDate)
+    const monthTotal = Object.values(paymentsByDay)
         .flat()
-        .reduce((total, transaction) => total + transaction.amount, 0);
+        .reduce((sum, payment) => sum + payment.amount, 0);
 
-    calendarSummary.textContent =
-        formatMoney(monthTotal) + ' planifié ce mois-ci';
+    summary.textContent = money(monthTotal) + ' planifié ce mois-ci';
 
-    const firstWeekday = getMondayBasedWeekday(firstDayOfMonth);
-    const daysInMonth = lastDayOfMonth.getDate();
     const cells = [];
+    const firstWeekday = mondayWeekday(start);
+    const daysInMonth = end.getDate();
 
-    for (let emptyCell = 0; emptyCell < firstWeekday; emptyCell += 1) {
-        cells.push('<div class="calendar-day empty-day" aria-hidden="true"></div>');
+    for (let index = 0; index < firstWeekday; index += 1) {
+        cells.push('<div class="calendar-day empty-day"></div>');
     }
 
     for (let day = 1; day <= daysInMonth; day += 1) {
-        const dateKey = getDateKey(year, month, day);
-        const scheduledTransactions = transactionsByDate[dateKey] || [];
-        const isToday = isSameDate(
-            new Date(year, month, day),
-            new Date()
-        );
+        const key = dateKey(year, month, day);
+        const dayPayments = (paymentsByDay[key] || [])
+            .sort((a, b) => b.amount - a.amount);
 
-        const totalForDay = scheduledTransactions.reduce(
-            (total, transaction) => total + transaction.amount,
-            0
-        );
+        const visiblePayments = dayPayments.slice(0, 3);
+        const hiddenCount = dayPayments.length - visiblePayments.length;
 
-        const visibleTransactions = scheduledTransactions
-            .sort((a, b) => b.amount - a.amount)
-            .slice(0, 3);
-
-        const hiddenCount = scheduledTransactions.length - visibleTransactions.length;
-
-        const paymentsHtml = visibleTransactions.map(transaction => {
+        const paymentsHtml = visiblePayments.map(payment => {
             return `
-                <div class="calendar-payment ${transaction.frequency}">
+                <div class="calendar-payment ${payment.frequency}">
                     <div class="calendar-payment-top">
                         <span class="calendar-payment-name">
-                            ${escapeHtml(transaction.merchant)}
+                            ${html(payment.merchant)}
                         </span>
 
                         <button
                             type="button"
                             class="calendar-delete-button"
-                            onclick="deleteTransaction('${escapeAttribute(transaction.id)}')"
-                            aria-label="Supprimer ${escapeAttribute(transaction.merchant)}"
-                            title="Supprimer ce paiement"
+                            onclick="deletePayment('${attribute(payment.id)}')"
+                            title="Supprimer"
                         >
                             ×
                         </button>
                     </div>
 
                     <span class="calendar-payment-amount">
-                        ${formatCompactMoney(transaction.amount)}
+                        ${compactMoney(payment.amount)}
                     </span>
                 </div>
             `;
         }).join('');
 
-        const morePaymentsHtml = hiddenCount > 0
+        const moreHtml = hiddenCount > 0
             ? `
                 <button
                     type="button"
                     class="calendar-more-payments"
-                    onclick="showDayPayments('${dateKey}')"
+                    onclick="showDayPayments('${key}')"
                 >
                     + ${hiddenCount} autre${hiddenCount > 1 ? 's' : ''}
                 </button>
             `
             : '';
 
-        const dayTotalHtml = scheduledTransactions.length > 0
-            ? `<div class="calendar-day-total">${formatCompactMoney(totalForDay)}</div>`
+        const dayTotal = dayPayments.reduce(
+            (sum, payment) => sum + payment.amount,
+            0
+        );
+
+        const totalHtml = dayPayments.length > 0
+            ? `<div class="calendar-day-total">${compactMoney(dayTotal)}</div>`
             : '';
 
-        const hasPaymentsClass = scheduledTransactions.length > 0
+        const todayClass = sameDate(
+            new Date(year, month, day),
+            new Date()
+        ) ? 'today' : '';
+
+        const paymentClass = dayPayments.length > 0
             ? 'has-payments'
             : '';
 
         cells.push(`
-            <div class="calendar-day ${hasPaymentsClass} ${isToday ? 'today' : ''}">
+            <div class="calendar-day ${todayClass} ${paymentClass}">
                 <div class="calendar-day-number">${day}</div>
                 ${paymentsHtml}
-                ${morePaymentsHtml}
-                ${dayTotalHtml}
+                ${moreHtml}
+                ${totalHtml}
             </div>
         `);
     }
 
-    const trailingCells = cells.length % 7 === 0
+    const missingCells = cells.length % 7 === 0
         ? 0
         : 7 - (cells.length % 7);
 
-    for (let emptyCell = 0; emptyCell < trailingCells; emptyCell += 1) {
-        cells.push('<div class="calendar-day empty-day" aria-hidden="true"></div>');
+    for (let index = 0; index < missingCells; index += 1) {
+        cells.push('<div class="calendar-day empty-day"></div>');
     }
 
-    calendarGrid.innerHTML = cells.join('');
+    grid.innerHTML = cells.join('');
 }
 
-function showDayPayments(dateKey) {
-    const [year, month] = dateKey.split('-').map(Number);
-    const transactionsByDate = getTransactionsForMonth(year, month - 1);
-    const payments = transactionsByDate[dateKey] || [];
+function showDayPayments(key) {
+    const parts = key.split('-').map(Number);
+    const year = parts[0];
+    const month = parts[1] - 1;
 
-    if (payments.length === 0) {
-        return;
-    }
+    const byDay = paymentsForMonth(year, month);
+    const payments = (byDay[key] || []).sort((a, b) => b.amount - a.amount);
 
-    const lines = payments
-        .sort((a, b) => b.amount - a.amount)
-        .map((payment, index) => {
-            return (
-                (index + 1) + '. ' +
-                payment.merchant +
-                ' — ' +
-                formatMoney(payment.amount) +
-                ' (' +
-                getFrequencyLabel(payment.frequency) +
-                ')'
-            );
-        })
-        .join('\n');
+    const list = payments.map((payment, index) => {
+        return (
+            (index + 1) + '. ' +
+            payment.merchant +
+            ' — ' +
+            money(payment.amount) +
+            ' (' +
+            frequencyName(payment.frequency) +
+            ')'
+        );
+    }).join('\n');
 
     const total = payments.reduce(
         (sum, payment) => sum + payment.amount,
@@ -438,52 +379,147 @@ function showDayPayments(dateKey) {
     );
 
     alert(
-        formatDateOnly(dateKey) +
+        dateLabel(key) +
         '\n\n' +
-        lines +
-        '\n\nTotal : ' + formatMoney(total) +
-        '\n\nPour supprimer un paiement, utilisez le × visible sur les paiements du calendrier ou le bouton Supprimer dans l’historique.'
+        list +
+        '\n\nTotal : ' + money(total) +
+        '\n\nUtilisez le × ou le bouton Supprimer dans l’historique pour retirer un paiement.'
     );
 }
 
-function exportCalendar() {
-    if (AppState.transactions.length === 0) {
-        alert('Ajoutez au moins un paiement avant d’exporter le calendrier.');
+function renderHistory() {
+    const container = document.getElementById('transactionsList');
+
+    if (AppState.payments.length === 0) {
+        container.innerHTML =
+            '<p class="empty-state">Aucun paiement pour le moment.</p>';
         return;
     }
 
-    const createdAt = formatIcsDateTime(new Date());
+    const sortedPayments = [...AppState.payments].sort((a, b) => {
+        return dateFromString(b.date) - dateFromString(a.date);
+    });
 
-    const events = AppState.transactions.map(transaction => {
-        const startDate = dateFromInput(transaction.date);
-        const endDate = new Date(startDate);
-        endDate.setDate(endDate.getDate() + 1);
+    container.innerHTML = sortedPayments.map(payment => {
+        return `
+            <div class="transaction-item">
+                <div class="transaction-info">
+                    <div class="transaction-merchant">
+                        ${html(payment.merchant)}
+                    </div>
 
-        const recurrenceRule = getIcsRecurrenceRule(transaction.frequency);
+                    <div class="transaction-meta">
+                        ${dateLabel(payment.date)}
+                        • ${categoryIcon(payment.category)}
+                        ${categoryName(payment.category)}
+                        • ${frequencyName(payment.frequency)}
+                    </div>
+                </div>
+
+                <div class="transaction-actions">
+                    <div class="transaction-amount">
+                        -${money(payment.amount)}
+                    </div>
+
+                    <button
+                        type="button"
+                        class="delete-transaction-button"
+                        onclick="deletePayment('${attribute(payment.id)}')"
+                    >
+                        Supprimer
+                    </button>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function renderCategoryStats() {
+    const container = document.getElementById('categoryStats');
+    const now = new Date();
+    const totals = {};
+
+    AppState.payments.forEach(payment => {
+        const count = occurrencesInPeriod(
+            payment,
+            startOfMonth(now),
+            endOfMonth(now)
+        );
+
+        if (count <= 0) {
+            return;
+        }
+
+        totals[payment.category] =
+            (totals[payment.category] || 0) +
+            payment.amount * count;
+    });
+
+    const total = Object.values(totals).reduce(
+        (sum, amount) => sum + amount,
+        0
+    );
+
+    if (total <= 0) {
+        container.innerHTML =
+            '<p class="empty-state">Aucune dépense pour le mois actuel.</p>';
+        return;
+    }
+
+    container.innerHTML = Object.entries(totals)
+        .sort(([, amountA], [, amountB]) => amountB - amountA)
+        .map(([category, amount]) => {
+            const categoryPercent = Math.round((amount / total) * 100);
+
+            return `
+                <div class="category-stat">
+                    <div class="icon">${categoryIcon(category)}</div>
+                    <div class="name">${categoryName(category)}</div>
+                    <div class="amount">${money(amount)}</div>
+                    <div class="percent">${categoryPercent}% du mois</div>
+                </div>
+            `;
+        })
+        .join('');
+}
+
+function exportCalendar() {
+    if (AppState.payments.length === 0) {
+        alert('Ajoutez au moins un paiement avant d’exporter.');
+        return;
+    }
+
+    const stamp = icsDateTime(new Date());
+
+    const events = AppState.payments.map(payment => {
+        const start = dateFromString(payment.date);
+        const end = new Date(start);
+        end.setDate(end.getDate() + 1);
 
         const lines = [
             'BEGIN:VEVENT',
-            'UID:' + escapeIcsText(String(transaction.id)) + '@budget-automatise',
-            'DTSTAMP:' + createdAt,
-            'DTSTART;VALUE=DATE:' + formatIcsDate(startDate),
-            'DTEND;VALUE=DATE:' + formatIcsDate(endDate),
-            'SUMMARY:' + escapeIcsText(
+            'UID:' + icsText(payment.id) + '@budget-automatise',
+            'DTSTAMP:' + stamp,
+            'DTSTART;VALUE=DATE:' + icsDate(start),
+            'DTEND;VALUE=DATE:' + icsDate(end),
+            'SUMMARY:' + icsText(
                 'Paiement : ' +
-                transaction.merchant +
+                payment.merchant +
                 ' (' +
-                formatMoney(transaction.amount) +
+                money(payment.amount) +
                 ')'
             ),
-            'DESCRIPTION:' + escapeIcsText(
-                'Montant : ' + formatMoney(transaction.amount) + '\n' +
-                'Catégorie : ' + getCategoryLabel(transaction.category) + '\n' +
-                'Fréquence : ' + getFrequencyLabel(transaction.frequency) + '\n' +
-                'Créé avec Budget Automatisé'
+            'DESCRIPTION:' + icsText(
+                'Montant : ' + money(payment.amount) + '\n' +
+                'Catégorie : ' + categoryName(payment.category) + '\n' +
+                'Fréquence : ' + frequencyName(payment.frequency)
             )
         ];
 
-        if (recurrenceRule) {
-            lines.push(recurrenceRule);
+        const recurrence = icsRecurrence(payment.frequency);
+
+        if (recurrence) {
+            lines.push(recurrence);
         }
 
         lines.push('END:VEVENT');
@@ -491,37 +527,32 @@ function exportCalendar() {
         return lines.join('\r\n');
     });
 
-    const calendarContent = [
+    const content = [
         'BEGIN:VCALENDAR',
         'VERSION:2.0',
         'CALSCALE:GREGORIAN',
         'PRODID:-//Budget Automatisé//FR-CA//',
-        'X-WR-CALNAME:Paiements Budget Automatisé',
-        'X-WR-CALDESC:Paiements exportés depuis Budget Automatisé',
+        'X-WR-CALNAME:Paiements Budget',
         ...events,
         'END:VCALENDAR'
     ].join('\r\n');
 
     const blob = new Blob(
-        [calendarContent],
+        [content],
         { type: 'text/calendar;charset=utf-8' }
     );
 
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
 
-    const now = new Date();
-    const filename =
-        'budget-calendrier-' +
-        now.getFullYear() +
-        '-' +
-        String(now.getMonth() + 1).padStart(2, '0') +
-        '-' +
-        String(now.getDate()).padStart(2, '0') +
-        '.ics';
+    const today = new Date();
 
     link.href = url;
-    link.download = filename;
+    link.download =
+        'budget-calendrier-' +
+        localDateString(today) +
+        '.ics';
+
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -531,12 +562,12 @@ function exportCalendar() {
     }, 1000);
 
     alert(
-        'Le fichier calendrier a été exporté.\n\n' +
-        'Ouvrez le fichier .ics téléchargé pour l’importer dans votre application Calendrier.'
+        'Le fichier .ics a été téléchargé.\n\n' +
+        'Ouvrez-le dans vos téléchargements pour l’importer dans votre calendrier.'
     );
 }
 
-function getIcsRecurrenceRule(frequency) {
+function icsRecurrence(frequency) {
     if (frequency === 'weekly') {
         return 'RRULE:FREQ=WEEKLY;INTERVAL=1';
     }
@@ -552,7 +583,352 @@ function getIcsRecurrenceRule(frequency) {
     return '';
 }
 
-function formatIcsDate(date) {
+function paymentsForMonth(year, month) {
+    const start = new Date(year, month, 1, 12, 0, 0, 0);
+    const end = new Date(year, month + 1, 0, 12, 0, 0, 0);
+    const byDay = {};
+
+    AppState.payments.forEach(payment => {
+        occurrenceDates(payment, start, end).forEach(date => {
+            const key = dateKey(
+                date.getFullYear(),
+                date.getMonth(),
+                date.getDate()
+            );
+
+            if (!byDay[key]) {
+                byDay[key] = [];
+            }
+
+            byDay[key].push(payment);
+        });
+    });
+
+    return byDay;
+}
+
+function spentInPeriod(start, end) {
+    return AppState.payments.reduce((total, payment) => {
+        return total + payment.amount * occurrencesInPeriod(
+            payment,
+            start,
+            end
+        );
+    }, 0);
+}
+
+function occurrencesInPeriod(payment, start, end) {
+    return occurrenceDates(payment, start, end).length;
+}
+
+function occurrenceDates(payment, start, end) {
+    const paymentStart = dateFromString(payment.date);
+
+    if (!paymentStart || paymentStart > end) {
+        return [];
+    }
+
+    if (payment.frequency === 'one-time') {
+        return paymentStart >= start && paymentStart <= end
+            ? [paymentStart]
+            : [];
+    }
+
+    const interval = payment.frequency === 'weekly'
+        ? 7
+        : payment.frequency === 'biweekly'
+            ? 14
+            : 0;
+
+    if (interval > 0) {
+        const date = new Date(paymentStart);
+        const dates = [];
+
+        while (date < start) {
+            date.setDate(date.getDate() + interval);
+        }
+
+        while (date <= end) {
+            dates.push(new Date(date));
+            date.setDate(date.getDate() + interval);
+        }
+
+        return dates;
+    }
+
+    if (payment.frequency === 'monthly') {
+        return monthlyDates(paymentStart, start, end);
+    }
+
+    return [];
+}
+
+function monthlyDates(paymentStart, start, end) {
+    let year = paymentStart.getFullYear();
+    let month = paymentStart.getMonth();
+    const day = paymentStart.getDate();
+
+    let date = monthlyDate(year, month, day);
+
+    while (date < start) {
+        month += 1;
+
+        if (month > 11) {
+            month = 0;
+            year += 1;
+        }
+
+        date = monthlyDate(year, month, day);
+    }
+
+    const dates = [];
+
+    while (date <= end) {
+        if (date >= paymentStart) {
+            dates.push(new Date(date));
+        }
+
+        month += 1;
+
+        if (month > 11) {
+            month = 0;
+            year += 1;
+        }
+
+        date = monthlyDate(year, month, day);
+    }
+
+    return dates;
+}
+
+function monthlyDate(year, month, day) {
+    const lastDay = new Date(year, month + 1, 0).getDate();
+
+    return new Date(
+        year,
+        month,
+        Math.min(day, lastDay),
+        12,
+        0,
+        0,
+        0
+    );
+}
+
+function updateBar(id, value) {
+    const element = document.getElementById(id);
+
+    element.style.width = Math.min(value, 100) + '%';
+    element.className = 'progress-fill';
+
+    if (value >= 80) {
+        element.classList.add('danger');
+    } else if (value >= 50) {
+        element.classList.add('warning');
+    }
+}
+
+function updateRemaining(id, value) {
+    const element = document.getElementById(id);
+
+    element.textContent = 'Reste : ' + money(value);
+    element.className = value < 0
+        ? 'remaining negative'
+        : 'remaining';
+}
+
+function setText(id, text) {
+    document.getElementById(id).textContent = text;
+}
+
+function percent(spent, budget) {
+    if (!Number.isFinite(budget) || budget <= 0) {
+        return 0;
+    }
+
+    return Math.min(Math.round((spent / budget) * 100), 100);
+}
+
+function validFrequency(value) {
+    const values = [
+        'one-time',
+        'weekly',
+        'biweekly',
+        'monthly'
+    ];
+
+    return values.includes(value) ? value : 'one-time';
+}
+
+function firstDayOfMonth(date) {
+    return new Date(
+        date.getFullYear(),
+        date.getMonth(),
+        1,
+        12,
+        0,
+        0,
+        0
+    );
+}
+
+function startOfMonth(date) {
+    return new Date(
+        date.getFullYear(),
+        date.getMonth(),
+        1,
+        0,
+        0,
+        0,
+        0
+    );
+}
+
+function endOfMonth(date) {
+    return new Date(
+        date.getFullYear(),
+        date.getMonth() + 1,
+        0,
+        23,
+        59,
+        59,
+        999
+    );
+}
+
+function startOfWeek(date) {
+    const result = new Date(date);
+    const day = result.getDay();
+    const sinceMonday = (day + 6) % 7;
+
+    result.setDate(result.getDate() - sinceMonday);
+    result.setHours(0, 0, 0, 0);
+
+    return result;
+}
+
+function endOfWeek(date) {
+    const result = startOfWeek(date);
+
+    result.setDate(result.getDate() + 6);
+    result.setHours(23, 59, 59, 999);
+
+    return result;
+}
+
+function mondayWeekday(date) {
+    return (date.getDay() + 6) % 7;
+}
+
+function dateFromString(value) {
+    const parts = String(value).split('-').map(Number);
+
+    if (!parts[0] || !parts[1] || !parts[2]) {
+        return null;
+    }
+
+    return new Date(
+        parts[0],
+        parts[1] - 1,
+        parts[2],
+        12,
+        0,
+        0,
+        0
+    );
+}
+
+function dateKey(year, month, day) {
+    return (
+        year + '-' +
+        String(month + 1).padStart(2, '0') + '-' +
+        String(day).padStart(2, '0')
+    );
+}
+
+function localDateString(date) {
+    return dateKey(
+        date.getFullYear(),
+        date.getMonth(),
+        date.getDate()
+    );
+}
+
+function sameDate(first, second) {
+    return (
+        first.getFullYear() === second.getFullYear() &&
+        first.getMonth() === second.getMonth() &&
+        first.getDate() === second.getDate()
+    );
+}
+
+function money(amount) {
+    return new Intl.NumberFormat('fr-CA', {
+        style: 'currency',
+        currency: 'CAD'
+    }).format(amount);
+}
+
+function compactMoney(amount) {
+    return new Intl.NumberFormat('fr-CA', {
+        style: 'currency',
+        currency: 'CAD',
+        maximumFractionDigits: 0
+    }).format(amount).replace(/\s/g, '');
+}
+
+function dateLabel(value) {
+    const date = dateFromString(value);
+
+    return new Intl.DateTimeFormat('fr-CA', {
+        day: '2-digit',
+        month: 'long',
+        year: 'numeric'
+    }).format(date);
+}
+
+function frequencyName(value) {
+    const names = {
+        'one-time': 'Unique',
+        weekly: 'Hebdomadaire',
+        biweekly: 'Aux 2 semaines',
+        monthly: 'Mensuelle'
+    };
+
+    return names[value] || 'Unique';
+}
+
+function categoryName(value) {
+    const names = {
+        groceries: 'Épicerie',
+        food: 'Restaurants et repas',
+        transport: 'Transport',
+        shopping: 'Achats',
+        entertainment: 'Divertissement',
+        bills: 'Factures et logement',
+        health: 'Santé',
+        other: 'Autre'
+    };
+
+    return names[value] || 'Autre';
+}
+
+function categoryIcon(value) {
+    const icons = {
+        groceries: '🥬',
+        food: '🍔',
+        transport: '🚗',
+        shopping: '🛒',
+        entertainment: '🎬',
+        bills: '📄',
+        health: '💊',
+        other: '📦'
+    };
+
+    return icons[value] || '📦';
+}
+
+function icsDate(date) {
     return (
         date.getFullYear() +
         String(date.getMonth() + 1).padStart(2, '0') +
@@ -560,7 +936,7 @@ function formatIcsDate(date) {
     );
 }
 
-function formatIcsDateTime(date) {
+function icsDateTime(date) {
     return (
         date.getUTCFullYear() +
         String(date.getUTCMonth() + 1).padStart(2, '0') +
@@ -573,7 +949,7 @@ function formatIcsDateTime(date) {
     );
 }
 
-function escapeIcsText(text) {
+function icsText(text) {
     return String(text)
         .replace(/\\/g, '\\\\')
         .replace(/\n/g, '\\n')
@@ -581,614 +957,34 @@ function escapeIcsText(text) {
         .replace(/;/g, '\\;');
 }
 
-function getTransactionsForMonth(year, month) {
-    const firstDayOfMonth = new Date(year, month, 1, 12, 0, 0, 0);
-    const lastDayOfMonth = new Date(year, month + 1, 0, 12, 0, 0, 0);
-    const transactionsByDate = {};
-
-    AppState.transactions.forEach(transaction => {
-        const occurrences = getOccurrenceDatesInPeriod(
-            transaction,
-            firstDayOfMonth,
-            lastDayOfMonth
-        );
-
-        occurrences.forEach(occurrenceDate => {
-            const dateKey = getDateKey(
-                occurrenceDate.getFullYear(),
-                occurrenceDate.getMonth(),
-                occurrenceDate.getDate()
-            );
-
-            if (!transactionsByDate[dateKey]) {
-                transactionsByDate[dateKey] = [];
-            }
-
-            transactionsByDate[dateKey].push({
-                ...transaction,
-                occurrenceDate: occurrenceDate
-            });
-        });
-    });
-
-    return transactionsByDate;
-}
-
-function getPeriodSpent(periodStart, periodEnd) {
-    return AppState.transactions.reduce((total, transaction) => {
-        const occurrences = getOccurrencesInPeriod(
-            transaction,
-            periodStart,
-            periodEnd
-        );
-
-        return total + transaction.amount * occurrences;
-    }, 0);
-}
-
-function getOccurrencesInPeriod(transaction, periodStart, periodEnd) {
-    return getOccurrenceDatesInPeriod(
-        transaction,
-        periodStart,
-        periodEnd
-    ).length;
-}
-
-function getOccurrenceDatesInPeriod(transaction, periodStart, periodEnd) {
-    const transactionStartDate = dateFromInput(transaction.date);
-
-    if (!transactionStartDate || transactionStartDate > periodEnd) {
-        return [];
-    }
-
-    if (transaction.frequency === 'one-time') {
-        return (
-            transactionStartDate >= periodStart &&
-            transactionStartDate <= periodEnd
-        ) ? [transactionStartDate] : [];
-    }
-
-    if (transaction.frequency === 'weekly') {
-        return getWeeklyOccurrenceDates(
-            transactionStartDate,
-            periodStart,
-            periodEnd
-        );
-    }
-
-    if (transaction.frequency === 'biweekly') {
-        return getBiweeklyOccurrenceDates(
-            transactionStartDate,
-            periodStart,
-            periodEnd
-        );
-    }
-
-    if (transaction.frequency === 'monthly') {
-        return getMonthlyOccurrenceDates(
-            transactionStartDate,
-            periodStart,
-            periodEnd
-        );
-    }
-
-    return [];
-}
-
-function getWeeklyOccurrenceDates(startDate, periodStart, periodEnd) {
-    const occurrence = new Date(startDate);
-    occurrence.setHours(12, 0, 0, 0);
-
-    while (occurrence < periodStart) {
-        occurrence.setDate(occurrence.getDate() + 7);
-    }
-
-    const occurrences = [];
-
-    while (occurrence <= periodEnd) {
-        occurrences.push(new Date(occurrence));
-        occurrence.setDate(occurrence.getDate() + 7);
-    }
-
-    return occurrences;
-}
-
-function getBiweeklyOccurrenceDates(startDate, periodStart, periodEnd) {
-    const occurrence = new Date(startDate);
-    occurrence.setHours(12, 0, 0, 0);
-
-    while (occurrence < periodStart) {
-        occurrence.setDate(occurrence.getDate() + 14);
-    }
-
-    const occurrences = [];
-
-    while (occurrence <= periodEnd) {
-        occurrences.push(new Date(occurrence));
-        occurrence.setDate(occurrence.getDate() + 14);
-    }
-
-    return occurrences;
-}
-
-function getMonthlyOccurrenceDates(startDate, periodStart, periodEnd) {
-    let year = startDate.getFullYear();
-    let month = startDate.getMonth();
-    const dayOfMonth = startDate.getDate();
-
-    let occurrence = buildMonthlyOccurrence(year, month, dayOfMonth);
-
-    while (occurrence < periodStart) {
-        month += 1;
-
-        if (month > 11) {
-            month = 0;
-            year += 1;
-        }
-
-        occurrence = buildMonthlyOccurrence(year, month, dayOfMonth);
-    }
-
-    const occurrences = [];
-
-    while (occurrence <= periodEnd) {
-        if (occurrence >= startDate) {
-            occurrences.push(new Date(occurrence));
-        }
-
-        month += 1;
-
-        if (month > 11) {
-            month = 0;
-            year += 1;
-        }
-
-        occurrence = buildMonthlyOccurrence(year, month, dayOfMonth);
-    }
-
-    return occurrences;
-}
-
-function buildMonthlyOccurrence(year, month, dayOfMonth) {
-    const lastDayOfMonth = new Date(year, month + 1, 0).getDate();
-
-    return new Date(
-        year,
-        month,
-        Math.min(dayOfMonth, lastDayOfMonth),
-        12,
-        0,
-        0,
-        0
-    );
-}
-
-function renderTransactions() {
-    const container = document.getElementById('transactionsList');
-
-    if (!container) {
-        return;
-    }
-
-    if (AppState.transactions.length === 0) {
-        container.innerHTML =
-            '<p class="empty-state">Aucune transaction pour le moment.</p>';
-        return;
-    }
-
-    const sortedTransactions = [...AppState.transactions].sort((a, b) => {
-        return dateFromInput(b.date) - dateFromInput(a.date);
-    });
-
-    container.innerHTML = sortedTransactions.map(transaction => {
-        return `
-            <div class="transaction-item">
-                <div class="transaction-info">
-                    <div class="transaction-merchant">
-                        ${escapeHtml(transaction.merchant)}
-                    </div>
-
-                    <div class="transaction-meta">
-                        ${formatDateOnly(transaction.date)}
-                        • ${getCategoryIcon(transaction.category)}
-                        ${getCategoryLabel(transaction.category)}
-                        • ${getFrequencyLabel(transaction.frequency)}
-                    </div>
-                </div>
-
-                <div class="transaction-actions">
-                    <div class="transaction-amount">
-                        -${formatMoney(transaction.amount)}
-                    </div>
-
-                    <button
-                        type="button"
-                        class="delete-transaction-button"
-                        onclick="deleteTransaction('${escapeAttribute(transaction.id)}')"
-                    >
-                        Supprimer
-                    </button>
-                </div>
-            </div>
-        `;
-    }).join('');
-}
-
-function renderCategoryStats() {
-    const container = document.getElementById('categoryStats');
-
-    if (!container) {
-        return;
-    }
-
-    const now = new Date();
-    const startOfMonth = getStartOfMonth(now);
-    const endOfMonth = getEndOfMonth(now);
-    const categoryTotals = {};
-
-    AppState.transactions.forEach(transaction => {
-        const occurrences = getOccurrencesInPeriod(
-            transaction,
-            startOfMonth,
-            endOfMonth
-        );
-
-        if (occurrences <= 0) {
-            return;
-        }
-
-        const category = transaction.category || 'other';
-
-        categoryTotals[category] =
-            (categoryTotals[category] || 0) +
-            transaction.amount * occurrences;
-    });
-
-    const totalSpent = Object.values(categoryTotals).reduce(
-        (total, amount) => total + amount,
-        0
-    );
-
-    if (totalSpent <= 0) {
-        container.innerHTML =
-            '<p class="empty-state">Aucune dépense pour le mois actuel.</p>';
-        return;
-    }
-
-    const sortedCategories = Object.entries(categoryTotals).sort(
-        ([, amountA], [, amountB]) => amountB - amountA
-    );
-
-    container.innerHTML = sortedCategories.map(([category, amount]) => {
-        const percent = Math.round((amount / totalSpent) * 100);
-
-        return `
-            <div class="category-stat">
-                <div class="icon">${getCategoryIcon(category)}</div>
-                <div class="name">${getCategoryLabel(category)}</div>
-                <div class="amount">${formatMoney(amount)}</div>
-                <div class="percent">${percent}% du mois</div>
-            </div>
-        `;
-    }).join('');
-}
-
-function clearTransactions() {
-    const confirmed = confirm(
-        'Voulez-vous vraiment effacer toutes les dépenses enregistrées ?'
-    );
-
-    if (!confirmed) {
-        return;
-    }
-
-    AppState.transactions = [];
-    saveToStorage();
-    updateUI();
-}
-
-function updateProgressBar(type, percent) {
-    const progressElement = document.getElementById(type + 'Progress');
-
-    if (!progressElement) {
-        return;
-    }
-
-    progressElement.style.width = Math.min(percent, 100) + '%';
-    progressElement.className = 'progress-fill';
-
-    if (percent >= 80) {
-        progressElement.classList.add('danger');
-    } else if (percent >= 50) {
-        progressElement.classList.add('warning');
-    }
-}
-
-function updateRemaining(elementId, amount) {
-    const element = document.getElementById(elementId);
-
-    if (!element) {
-        return;
-    }
-
-    element.textContent = 'Reste : ' + formatMoney(amount);
-    element.className = amount < 0
-        ? 'remaining negative'
-        : 'remaining';
-}
-
-function checkBudgetAlerts() {
-    if (!window.NotificationManager) {
-        return;
-    }
-
-    const now = new Date();
-
-    const monthlySpent = getPeriodSpent(
-        getStartOfMonth(now),
-        getEndOfMonth(now)
-    );
-
-    const weeklySpent = getPeriodSpent(
-        getStartOfWeek(now),
-        getEndOfWeek(now)
-    );
-
-    const monthlyPercent = calculatePercent(
-        monthlySpent,
-        AppState.monthlyBudget
-    );
-
-    const weeklyPercent = calculatePercent(
-        weeklySpent,
-        AppState.weeklyBudget
-    );
-
-    if (monthlyPercent >= 50) {
-        NotificationManager.showBudgetAlert(
-            'mensuel',
-            monthlyPercent,
-            monthlySpent,
-            AppState.monthlyBudget
-        );
-    }
-
-    if (weeklyPercent >= 50) {
-        NotificationManager.showBudgetAlert(
-            'hebdomadaire',
-            weeklyPercent,
-            weeklySpent,
-            AppState.weeklyBudget
-        );
-    }
-}
-
-async function requestNotificationPermission() {
-    if (!window.NotificationManager) {
-        alert('Les notifications ne sont pas disponibles dans ce navigateur.');
-        return;
-    }
-
-    const granted = await NotificationManager.requestPermission();
-
-    if (granted) {
-        const permissionSection = document.getElementById('permissionsSection');
-
-        if (permissionSection) {
-            permissionSection.style.display = 'none';
-        }
-    }
-}
-
-function checkNotificationPermission() {
-    if (
-        window.NotificationManager &&
-        NotificationManager.checkPermission() === 'granted'
-    ) {
-        const permissionSection = document.getElementById('permissionsSection');
-
-        if (permissionSection) {
-            permissionSection.style.display = 'none';
-        }
-    }
-}
-
-function calculatePercent(spent, total) {
-    if (!Number.isFinite(total) || total <= 0) {
-        return 0;
-    }
-
-    return Math.min(Math.round((spent / total) * 100), 100);
-}
-
-function dateFromInput(dateString) {
-    if (!dateString) {
-        return null;
-    }
-
-    const parts = dateString.split('-').map(Number);
-    const year = parts[0];
-    const month = parts[1];
-    const day = parts[2];
-
-    if (!year || !month || !day) {
-        return null;
-    }
-
-    return new Date(year, month - 1, day, 12, 0, 0, 0);
-}
-
-function getFirstDayOfMonth(date) {
-    return new Date(
-        date.getFullYear(),
-        date.getMonth(),
-        1,
-        12,
-        0,
-        0,
-        0
-    );
-}
-
-function getStartOfMonth(date) {
-    return new Date(
-        date.getFullYear(),
-        date.getMonth(),
-        1,
-        0,
-        0,
-        0,
-        0
-    );
-}
-
-function getEndOfMonth(date) {
-    return new Date(
-        date.getFullYear(),
-        date.getMonth() + 1,
-        0,
-        23,
-        59,
-        59,
-        999
-    );
-}
-
-function getStartOfWeek(date) {
-    const result = new Date(date);
-    const dayOfWeek = result.getDay();
-    const daysSinceMonday = (dayOfWeek + 6) % 7;
-
-    result.setDate(result.getDate() - daysSinceMonday);
-    result.setHours(0, 0, 0, 0);
-
-    return result;
-}
-
-function getEndOfWeek(date) {
-    const result = getStartOfWeek(date);
-
-    result.setDate(result.getDate() + 6);
-    result.setHours(23, 59, 59, 999);
-
-    return result;
-}
-
-function getMondayBasedWeekday(date) {
-    return (date.getDay() + 6) % 7;
-}
-
-function getDateKey(year, month, day) {
-    return (
-        year + '-' +
-        String(month + 1).padStart(2, '0') + '-' +
-        String(day).padStart(2, '0')
-    );
-}
-
-function getLocalDateString(date) {
-    return getDateKey(
-        date.getFullYear(),
-        date.getMonth(),
-        date.getDate()
-    );
-}
-
-function isSameDate(dateA, dateB) {
-    return (
-        dateA.getFullYear() === dateB.getFullYear() &&
-        dateA.getMonth() === dateB.getMonth() &&
-        dateA.getDate() === dateB.getDate()
-    );
-}
-
-function formatMoney(amount) {
-    return new Intl.NumberFormat('fr-CA', {
-        style: 'currency',
-        currency: 'CAD'
-    }).format(amount);
-}
-
-function formatCompactMoney(amount) {
-    const formatted = new Intl.NumberFormat('fr-CA', {
-        style: 'currency',
-        currency: 'CAD',
-        maximumFractionDigits: 0
-    }).format(amount);
-
-    return formatted.replace(/\s/g, '');
-}
-
-function formatDateOnly(dateString) {
-    const date = dateFromInput(dateString);
-
-    if (!date) {
-        return 'Date inconnue';
-    }
-
-    return new Intl.DateTimeFormat('fr-CA', {
-        day: '2-digit',
-        month: 'long',
-        year: 'numeric'
-    }).format(date);
-}
-
-function getFrequencyLabel(frequency) {
-    const labels = {
-        'one-time': 'Unique',
-        weekly: 'Hebdomadaire',
-        biweekly: 'Aux 2 semaines',
-        monthly: 'Mensuelle'
-    };
-
-    return labels[frequency] || 'Unique';
-}
-
-function getCategoryIcon(category) {
-    const icons = {
-        groceries: '🥬',
-        food: '🍔',
-        transport: '🚗',
-        shopping: '🛒',
-        entertainment: '🎬',
-        bills: '📄',
-        health: '💊',
-        other: '📦'
-    };
-
-    return icons[category] || '📦';
-}
-
-function getCategoryLabel(category) {
-    const labels = {
-        groceries: 'Épicerie',
-        food: 'Restaurants et repas',
-        transport: 'Transport',
-        shopping: 'Achats',
-        entertainment: 'Divertissement',
-        bills: 'Factures et logement',
-        health: 'Santé',
-        other: 'Autre'
-    };
-
-    return labels[category] || 'Autre';
-}
-
 function createId() {
     if (window.crypto && crypto.randomUUID) {
         return crypto.randomUUID();
     }
 
-    return Date.now().toString() + '-' + Math.random().toString(16).slice(2);
+    return Date.now() + '-' + Math.random().toString(16).slice(2);
 }
 
-function escapeHtml(text) {
+function createLegacyId(payment, index) {
+    return (
+        'old-' +
+        String(payment.merchant || 'payment') +
+        '-' +
+        String(payment.amount || 0) +
+        '-' +
+        String(payment.date || '') +
+        '-' +
+        index
+    ).replace(/\s/g, '-');
+}
+
+function html(text) {
     const element = document.createElement('div');
     element.textContent = text || '';
     return element.innerHTML;
 }
 
-function escapeAttribute(text) {
+function attribute(text) {
     return String(text)
         .replace(/&/g, '&amp;')
         .replace(/'/g, '&#39;')
