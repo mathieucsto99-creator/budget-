@@ -109,6 +109,33 @@ body {
     background: #4338CA;
 }
 
+.btn-income {
+    background: #047857;
+    color: #FFFFFF;
+}
+
+.btn-income:hover {
+    background: #065F46;
+}
+
+.btn-planned {
+    background: #EA580C;
+    color: #FFFFFF;
+}
+
+.btn-planned:hover {
+    background: #C2410C;
+}
+
+.btn-debt {
+    background: #B91C1C;
+    color: #FFFFFF;
+}
+
+.btn-debt:hover {
+    background: #991B1B;
+}
+
 .btn-text {
     background: transparent;
     color: #DC2626;
@@ -127,6 +154,14 @@ body {
 
 .budget-card.weekly {
     border-left-color: #10B981;
+}
+
+.budget-card.monthly {
+    border-left-color: #4F46E5;
+}
+
+.income-card {
+    border-left-color: #047857;
 }
 
 .budget-header,
@@ -154,6 +189,10 @@ body {
     color: #1F2937;
     font-size: 1.5rem;
     font-weight: 800;
+}
+
+.income-value {
+    color: #047857 !important;
 }
 
 .budget-amounts .total {
@@ -265,7 +304,7 @@ body {
     background: #FFFFFF;
     border-bottom: 1px solid #E5E7EB;
     border-right: 1px solid #E5E7EB;
-    min-height: 130px;
+    min-height: 132px;
     overflow: hidden;
     padding: 5px;
     position: relative;
@@ -325,6 +364,24 @@ body {
     background: #E0E7FF;
     border-left-color: #4F46E5;
     color: #312E81;
+}
+
+.calendar-payment.income-event {
+    background: #D1FAE5;
+    border-left-color: #047857;
+    color: #064E3B;
+}
+
+.calendar-payment.planned-event {
+    background: #FFEDD5;
+    border-left-color: #EA580C;
+    color: #7C2D12;
+}
+
+.calendar-payment.debt-event {
+    background: #FEE2E2;
+    border-left-color: #DC2626;
+    color: #7F1D1D;
 }
 
 .calendar-payment-top {
@@ -397,7 +454,7 @@ body {
 .calendar-legend {
     display: flex;
     flex-wrap: wrap;
-    gap: 12px;
+    gap: 10px;
     margin-top: 14px;
 }
 
@@ -416,6 +473,10 @@ body {
     width: 10px;
 }
 
+.income-dot {
+    background: #047857;
+}
+
 .one-time-dot {
     background: #F59E0B;
 }
@@ -432,6 +493,14 @@ body {
     background: #4F46E5;
 }
 
+.planned-dot {
+    background: #EA580C;
+}
+
+.debt-dot {
+    background: #DC2626;
+}
+
 .export-calendar-button {
     background: #0F766E;
     color: #FFFFFF;
@@ -443,7 +512,7 @@ body {
 }
 
 .transactions-list {
-    max-height: 420px;
+    max-height: 430px;
     overflow-y: auto;
 }
 
@@ -493,6 +562,13 @@ body {
     white-space: nowrap;
 }
 
+.income-amount {
+    color: #047857;
+    font-size: 1rem;
+    font-weight: 800;
+    white-space: nowrap;
+}
+
 .delete-transaction-button {
     background: #FEE2E2;
     border: 1px solid #FCA5A5;
@@ -504,14 +580,60 @@ body {
     padding: 5px 8px;
 }
 
-.delete-transaction-button:hover {
-    background: #FECACA;
-}
-
 .empty-state {
     color: #9CA3AF;
     padding: 28px 12px;
     text-align: center;
+}
+
+.debt-item {
+    background: #FFF7ED;
+    border-left: 4px solid #DC2626;
+    border-radius: 10px;
+    margin-bottom: 12px;
+    padding: 14px;
+}
+
+.debt-item:last-child {
+    margin-bottom: 0;
+}
+
+.debt-item p {
+    color: #4B5563;
+    font-size: 0.88rem;
+    margin-top: 6px;
+}
+
+.debt-item-header {
+    align-items: center;
+    display: flex;
+    gap: 12px;
+    justify-content: space-between;
+}
+
+.debt-remaining {
+    color: #B91C1C !important;
+    font-size: 1rem !important;
+    font-weight: 800;
+}
+
+.debt-progress-bar {
+    background: #FECACA;
+    border-radius: 6px;
+    height: 10px;
+    margin-top: 10px;
+    overflow: hidden;
+}
+
+.debt-progress-fill {
+    background: #DC2626;
+    border-radius: 6px;
+    height: 100%;
+}
+
+.debt-progress-text {
+    color: #B91C1C !important;
+    font-weight: 700;
 }
 
 .category-stats {
@@ -568,7 +690,7 @@ body {
     }
 
     .calendar-day {
-        min-height: 104px;
+        min-height: 108px;
         padding: 3px;
     }
 
@@ -607,59 +729,5 @@ body {
 
     .calendar-legend span {
         font-size: 0.7rem;
-    }
-}
-.btn-income {
-    background: #047857;
-    color: #FFFFFF;
-}
-
-.btn-income:hover {
-    background: #065F46;
-}
-
-.income-card {
-    border-left-color: #047857;
-}
-
-.income-value {
-    color: #047857 !important;
-}
-
-.income-dot {
-    background: #047857;
-}
-
-.calendar-payment.income-event {
-    background: #D1FAE5;
-    border-left-color: #047857;
-    color: #064E3B;
-}
-
-.income-history-item {
-    background: #F0FDF4;
-}
-
-.income-amount {
-    color: #047857;
-    font-size: 1rem;
-    font-weight: 800;
-    white-space: nowrap;
-}
-
-@media (prefers-color-scheme: dark) {
-    .income-history-item {
-        background: #134E4A;
-    }
-
-    .calendar-payment.income-event {
-        background: #065F46;
-        border-left-color: #6EE7B7;
-        color: #ECFDF5;
-    }
-
-    .income-amount,
-    .income-value {
-        color: #6EE7B7 !important;
     }
 }
