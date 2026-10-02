@@ -8,11 +8,10 @@
 
     <meta
         name="description"
-        content="Suivi personnel de budget mensuel, hebdomadaire et calendrier de paiements"
+        content="Suivi personnel de budget et calendrier de paiements"
     >
     <meta name="theme-color" content="#4F46E5">
 
-    <link rel="manifest" href="manifest.json">
     <link rel="stylesheet" href="styles.css">
 </head>
 
@@ -22,34 +21,9 @@
         <header class="header">
             <h1>💰 Budget Automatisé</h1>
             <p class="subtitle">
-                Dépenses, paiements récurrents et calendrier mensuel
+                Budget, paiements récurrents et calendrier
             </p>
         </header>
-
-        <section class="card permissions-card" id="permissionsSection">
-            <h2>🔔 Notifications</h2>
-
-            <div class="permission-list">
-                <div class="permission-item">
-                    <span class="icon">🔔</span>
-
-                    <div>
-                        <strong>Alertes de budget</strong>
-                        <p>
-                            Recevez une alerte lorsque votre budget atteint 50 %, 80 % ou 100 %.
-                        </p>
-                    </div>
-
-                    <button
-                        type="button"
-                        class="btn btn-small"
-                        onclick="requestNotificationPermission()"
-                    >
-                        Activer
-                    </button>
-                </div>
-            </div>
-        </section>
 
         <section class="card">
             <h2>📋 Configurer le budget</h2>
@@ -76,7 +50,7 @@
             </button>
 
             <p class="helper-text">
-                Le budget hebdomadaire est estimé automatiquement en divisant le budget mensuel par 4,33.
+                Le budget hebdomadaire est calculé en divisant le budget mensuel par 4,33.
             </p>
         </section>
 
@@ -98,11 +72,9 @@
                     <div class="progress-fill" id="weeklyProgress"></div>
                 </div>
 
-                <div class="budget-footer">
-                    <span class="remaining" id="weeklyRemaining">
-                        Reste : 0,00 $
-                    </span>
-                </div>
+                <p class="remaining" id="weeklyRemaining">
+                    Reste : 0,00 $
+                </p>
             </div>
 
             <div class="budget-card monthly">
@@ -120,16 +92,14 @@
                     <div class="progress-fill" id="monthlyProgress"></div>
                 </div>
 
-                <div class="budget-footer">
-                    <span class="remaining" id="monthlyRemaining">
-                        Reste : 0,00 $
-                    </span>
-                </div>
+                <p class="remaining" id="monthlyRemaining">
+                    Reste : 0,00 $
+                </p>
             </div>
         </section>
 
         <section class="card">
-            <h2>➕ Ajouter une dépense</h2>
+            <h2>➕ Ajouter un paiement</h2>
 
             <div class="form-row">
                 <div class="form-group flex-1">
@@ -146,7 +116,7 @@
                 </div>
 
                 <div class="form-group flex-1">
-                    <label for="expenseDate">Date</label>
+                    <label for="expenseDate">Date de départ</label>
 
                     <input
                         type="date"
@@ -157,12 +127,12 @@
 
             <div class="form-row">
                 <div class="form-group flex-1">
-                    <label for="expenseMerchant">Nom de la dépense</label>
+                    <label for="expenseMerchant">Nom du paiement</label>
 
                     <input
                         type="text"
                         id="expenseMerchant"
-                        placeholder="Ex. Loyer, Netflix, IGA"
+                        placeholder="Ex. Loyer, Netflix, Hydro-Québec"
                     >
                 </div>
 
@@ -196,13 +166,13 @@
             <button
                 type="button"
                 class="btn btn-primary"
-                onclick="addManualExpense()"
+                onclick="addPayment()"
             >
-                Ajouter la dépense
+                Ajouter le paiement
             </button>
 
             <p class="helper-text">
-                Unique : une seule fois. Hebdomadaire : tous les 7 jours. Aux 2 semaines : tous les 14 jours. Mensuelle : chaque mois à la même date.
+                Les paiements récurrents apparaissent automatiquement dans les mois suivants.
             </p>
         </section>
 
@@ -234,7 +204,7 @@
                 </button>
             </div>
 
-            <div class="calendar-weekdays" aria-hidden="true">
+            <div class="calendar-weekdays">
                 <span>Lun</span>
                 <span>Mar</span>
                 <span>Mer</span>
@@ -244,11 +214,7 @@
                 <span>Dim</span>
             </div>
 
-            <div
-                class="calendar-grid"
-                id="calendarGrid"
-                aria-label="Calendrier des paiements"
-            ></div>
+            <div class="calendar-grid" id="calendarGrid"></div>
 
             <div class="calendar-legend">
                 <span><i class="legend-dot one-time-dot"></i> Unique</span>
@@ -266,25 +232,25 @@
             </button>
 
             <p class="helper-text">
-                Le fichier exporté peut être importé dans Google Calendar, Samsung Calendar, Apple Calendar ou Outlook.
+                Le fichier .ics peut être importé dans Samsung Calendar, Google Calendar, Apple Calendar ou Outlook.
             </p>
         </section>
 
         <section class="card">
-            <h2>📜 Historique des dépenses</h2>
+            <h2>📜 Historique des paiements</h2>
 
             <div id="transactionsList" class="transactions-list">
                 <p class="empty-state">
-                    Aucune transaction pour le moment.
+                    Aucun paiement pour le moment.
                 </p>
             </div>
 
             <button
                 type="button"
                 class="btn btn-text"
-                onclick="clearTransactions()"
+                onclick="clearAllPayments()"
             >
-                🗑️ Effacer tout l’historique
+                🗑️ Effacer tous les paiements
             </button>
         </section>
 
@@ -300,7 +266,6 @@
 
     </main>
 
-    <script src="notifications.js"></script>
     <script src="app.js"></script>
 </body>
 </html>
