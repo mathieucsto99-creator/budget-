@@ -22,7 +22,7 @@
         <header class="header">
             <h1>💰 Budget Automatisé</h1>
             <p class="subtitle">
-                Suivez vos dépenses mensuelles, hebdomadaires et récurrentes
+                Dépenses, paiements récurrents et calendrier mensuel
             </p>
         </header>
 
@@ -201,7 +201,62 @@
             </button>
 
             <p class="helper-text">
-                Choisissez « Unique » pour une dépense ponctuelle, « Hebdomadaire » pour une dépense qui revient chaque semaine, ou « Mensuelle » pour une dépense comme le loyer ou Netflix.
+                Unique : une seule fois. Hebdomadaire : chaque semaine. Mensuelle : chaque mois à la date sélectionnée.
+            </p>
+        </section>
+
+        <section class="card calendar-card">
+            <div class="calendar-header">
+                <button
+                    type="button"
+                    class="calendar-nav-button"
+                    onclick="changeCalendarMonth(-1)"
+                    aria-label="Mois précédent"
+                >
+                    ‹
+                </button>
+
+                <div>
+                    <h2 id="calendarTitle">Calendrier</h2>
+                    <p class="calendar-summary" id="calendarSummary">
+                        0,00 $ planifié ce mois-ci
+                    </p>
+                </div>
+
+                <button
+                    type="button"
+                    class="calendar-nav-button"
+                    onclick="changeCalendarMonth(1)"
+                    aria-label="Mois suivant"
+                >
+                    ›
+                </button>
+            </div>
+
+            <div class="calendar-weekdays" aria-hidden="true">
+                <span>Lun</span>
+                <span>Mar</span>
+                <span>Mer</span>
+                <span>Jeu</span>
+                <span>Ven</span>
+                <span>Sam</span>
+                <span>Dim</span>
+            </div>
+
+            <div
+                class="calendar-grid"
+                id="calendarGrid"
+                aria-label="Calendrier des paiements"
+            ></div>
+
+            <div class="calendar-legend">
+                <span><i class="legend-dot one-time-dot"></i> Unique</span>
+                <span><i class="legend-dot weekly-dot"></i> Hebdomadaire</span>
+                <span><i class="legend-dot monthly-dot"></i> Mensuelle</span>
+            </div>
+
+            <p class="helper-text">
+                Le calendrier se met automatiquement à jour lorsque vous changez de mois. Les paiements récurrents y sont ajoutés à leurs dates prévues.
             </p>
         </section>
 
