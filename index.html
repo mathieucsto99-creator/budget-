@@ -21,10 +21,11 @@
         <header class="header">
             <h1>💰 Budget Automatisé</h1>
             <p class="subtitle">
-                Revenus, paiements, dépenses prévues, dettes et calendrier
+                Revenus, paiements, dettes et calendrier
             </p>
         </header>
 
+        <!-- Revenus -->
         <section class="card">
             <h2>💵 Ajouter un revenu</h2>
 
@@ -77,48 +78,84 @@
             </button>
         </section>
 
+        <!-- Aperçu -->
         <section class="card">
             <h2>📊 Aperçu financier actuel</h2>
 
-            <div class="summary-grid">
-                <div class="summary-box income-summary">
-                    <span class="summary-label">Revenus ce mois</span>
-                    <strong id="monthlyIncome">0,00 $</strong>
-                    <small id="monthlyIncomeCount">0 paie</small>
+            <div class="budget-card income-card">
+                <div class="budget-header">
+                    <h3>💵 Revenus prévus ce mois</h3>
+                    <span class="budget-percent" id="monthlyIncomeCount">0 paie</span>
                 </div>
 
-                <div class="summary-box expense-summary">
-                    <span class="summary-label">Dépenses ce mois</span>
-                    <strong id="monthlySpent">0,00 $</strong>
-                    <small id="monthlyPercent">0%</small>
+                <div class="budget-amounts">
+                    <span class="spent income-value" id="monthlyIncome">0,00 $</span>
+                    <span class="total">Revenus mensuels</span>
                 </div>
 
-                <div class="summary-box balance-summary">
-                    <span class="summary-label">Solde mensuel</span>
-                    <strong id="monthlyBalance">0,00 $</strong>
-                    <small>Revenus moins dépenses</small>
+                <p class="remaining" id="monthlyBalance">
+                    Solde planifié : 0,00 $
+                </p>
+            </div>
+
+            <div class="budget-card income-card">
+                <div class="budget-header">
+                    <h3>💵 Revenus prévus cette semaine</h3>
+                    <span class="budget-percent" id="weeklyIncomeCount">0 paie</span>
                 </div>
 
-                <div class="summary-box income-summary">
-                    <span class="summary-label">Revenus cette semaine</span>
-                    <strong id="weeklyIncome">0,00 $</strong>
-                    <small id="weeklyIncomeCount">0 paie</small>
+                <div class="budget-amounts">
+                    <span class="spent income-value" id="weeklyIncome">0,00 $</span>
+                    <span class="total">Revenus hebdomadaires</span>
                 </div>
 
-                <div class="summary-box expense-summary">
-                    <span class="summary-label">Dépenses cette semaine</span>
-                    <strong id="weeklySpent">0,00 $</strong>
-                    <small id="weeklyPercent">0%</small>
+                <p class="remaining" id="weeklyBalance">
+                    Solde planifié : 0,00 $
+                </p>
+            </div>
+
+            <div class="budget-card weekly">
+                <div class="budget-header">
+                    <h3>📅 Dépenses cette semaine</h3>
+                    <span class="budget-percent" id="weeklyPercent">0%</span>
                 </div>
 
-                <div class="summary-box balance-summary">
-                    <span class="summary-label">Solde hebdomadaire</span>
-                    <strong id="weeklyBalance">0,00 $</strong>
-                    <small>Revenus moins dépenses</small>
+                <div class="budget-amounts">
+                    <span class="spent" id="weeklySpent">0,00 $</span>
+                    <span class="total" id="weeklyTotal">0,00 $</span>
                 </div>
+
+                <div class="progress-bar">
+                    <div class="progress-fill" id="weeklyProgress"></div>
+                </div>
+
+                <p class="remaining" id="weeklyRemaining">
+                    Reste : 0,00 $
+                </p>
+            </div>
+
+            <div class="budget-card monthly">
+                <div class="budget-header">
+                    <h3>📆 Dépenses ce mois</h3>
+                    <span class="budget-percent" id="monthlyPercent">0%</span>
+                </div>
+
+                <div class="budget-amounts">
+                    <span class="spent" id="monthlySpent">0,00 $</span>
+                    <span class="total" id="monthlyTotal">0,00 $</span>
+                </div>
+
+                <div class="progress-bar">
+                    <div class="progress-fill" id="monthlyProgress"></div>
+                </div>
+
+                <p class="remaining" id="monthlyRemaining">
+                    Reste : 0,00 $
+                </p>
             </div>
         </section>
 
+        <!-- Paiements réguliers -->
         <section class="card">
             <h2>➕ Ajouter un paiement régulier</h2>
 
@@ -170,4 +207,260 @@
                     <option value="transport">🚗 Transport</option>
                     <option value="shopping">🛒 Achats</option>
                     <option value="entertainment">🎬 Divertissement</option>
-                    <option value="bills">📄 Factures et logement</op
+                    <option value="bills">📄 Factures et logement</option>
+                    <option value="health">💊 Santé</option>
+                    <option value="other">📦 Autre</option>
+                </select>
+            </div>
+
+            <button
+                type="button"
+                class="btn btn-primary"
+                onclick="addPayment()"
+            >
+                Ajouter le paiement
+            </button>
+        </section>
+
+        <!-- Dépenses à prévoir -->
+        <section class="card planned-expense-card">
+            <h2>🔮 Dépenses à prévoir</h2>
+
+            <p class="helper-text">
+                Ajoutez une dépense future ponctuelle. Elle apparaîtra automatiquement dans le calendrier à la date choisie.
+            </p>
+
+            <div class="form-row">
+                <div class="form-group flex-1">
+                    <label for="plannedAmount">Montant (CAD $)</label>
+                    <input
+                        type="number"
+                        id="plannedAmount"
+                        placeholder="Ex. 300"
+                        min="0.01"
+                        step="0.01"
+                        inputmode="decimal"
+                    >
+                </div>
+
+                <div class="form-group flex-1">
+                    <label for="plannedDate">Date prévue</label>
+                    <input type="date" id="plannedDate">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="plannedName">Nom de la dépense</label>
+                <input
+                    type="text"
+                    id="plannedName"
+                    placeholder="Ex. Réparation auto, cadeau, vacances"
+                >
+            </div>
+
+            <div class="form-group">
+                <label for="plannedCategory">Catégorie</label>
+                <select id="plannedCategory">
+                    <option value="other">📦 Autre</option>
+                    <option value="shopping">🛒 Achats</option>
+                    <option value="transport">🚗 Transport</option>
+                    <option value="health">💊 Santé</option>
+                    <option value="bills">📄 Factures et logement</option>
+                    <option value="entertainment">🎬 Divertissement</option>
+                </select>
+            </div>
+
+            <button
+                type="button"
+                class="btn btn-planned"
+                onclick="addPlannedExpense()"
+            >
+                Ajouter la dépense prévue
+            </button>
+        </section>
+
+        <!-- Dettes -->
+        <section class="card debt-card">
+            <h2>💳 Suivi des dettes</h2>
+
+            <p class="helper-text">
+                Le solde est réduit automatiquement lorsque la date d’un paiement de dette est passée. Les paiements prévus sont visibles en rouge dans le calendrier.
+            </p>
+
+            <div class="form-row">
+                <div class="form-group flex-1">
+                    <label for="debtName">Nom de la dette</label>
+                    <input
+                        type="text"
+                        id="debtName"
+                        placeholder="Ex. Carte de crédit Visa"
+                    >
+                </div>
+
+                <div class="form-group flex-1">
+                    <label for="debtTotal">Montant total dû (CAD $)</label>
+                    <input
+                        type="number"
+                        id="debtTotal"
+                        placeholder="Ex. 1500"
+                        min="0.01"
+                        step="0.01"
+                        inputmode="decimal"
+                    >
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group flex-1">
+                    <label for="debtPaymentAmount">Montant du paiement</label>
+                    <input
+                        type="number"
+                        id="debtPaymentAmount"
+                        placeholder="Ex. 100"
+                        min="0.01"
+                        step="0.01"
+                        inputmode="decimal"
+                    >
+                </div>
+
+                <div class="form-group flex-1">
+                    <label for="debtPaymentDate">Première date de paiement</label>
+                    <input type="date" id="debtPaymentDate">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="debtFrequency">Fréquence des paiements</label>
+                <select id="debtFrequency">
+                    <option value="weekly">Chaque semaine</option>
+                    <option value="biweekly">Aux 2 semaines</option>
+                    <option value="monthly">Chaque mois</option>
+                </select>
+            </div>
+
+            <button
+                type="button"
+                class="btn btn-debt"
+                onclick="addDebt()"
+            >
+                Ajouter la dette
+            </button>
+        </section>
+
+        <!-- Calendrier -->
+        <section class="card calendar-card">
+            <div class="calendar-header">
+                <button
+                    type="button"
+                    class="calendar-nav-button"
+                    onclick="changeCalendarMonth(-1)"
+                    aria-label="Mois précédent"
+                >
+                    ‹
+                </button>
+
+                <div>
+                    <h2 id="calendarTitle">Calendrier</h2>
+                    <p class="calendar-summary" id="calendarSummary">
+                        Revenus, paiements et dettes
+                    </p>
+                </div>
+
+                <button
+                    type="button"
+                    class="calendar-nav-button"
+                    onclick="changeCalendarMonth(1)"
+                    aria-label="Mois suivant"
+                >
+                    ›
+                </button>
+            </div>
+
+            <div class="calendar-weekdays">
+                <span>Lun</span>
+                <span>Mar</span>
+                <span>Mer</span>
+                <span>Jeu</span>
+                <span>Ven</span>
+                <span>Sam</span>
+                <span>Dim</span>
+            </div>
+
+            <div class="calendar-grid" id="calendarGrid"></div>
+
+            <div class="calendar-legend">
+                <span><i class="legend-dot income-dot"></i> Revenu</span>
+                <span><i class="legend-dot one-time-dot"></i> Paiement unique</span>
+                <span><i class="legend-dot weekly-dot"></i> Hebdomadaire</span>
+                <span><i class="legend-dot biweekly-dot"></i> Aux 2 semaines</span>
+                <span><i class="legend-dot monthly-dot"></i> Mensuelle</span>
+                <span><i class="legend-dot planned-dot"></i> À prévoir</span>
+                <span><i class="legend-dot debt-dot"></i> Dette</span>
+            </div>
+
+            <button
+                type="button"
+                class="btn export-calendar-button"
+                onclick="exportCalendarOnly()"
+            >
+                🖨️ Télécharger le calendrier imprimable
+            </button>
+
+            <p class="helper-text">
+                Le fichier téléchargé contient seulement le calendrier du mois sélectionné, avec tous les éléments affichés.
+            </p>
+        </section>
+
+        <!-- Historique revenus -->
+        <section class="card">
+            <h2>💵 Historique des revenus</h2>
+            <div id="incomesList" class="transactions-list">
+                <p class="empty-state">Aucun revenu pour le moment.</p>
+            </div>
+        </section>
+
+        <!-- Historique paiements -->
+        <section class="card">
+            <h2>📜 Historique des paiements</h2>
+            <div id="transactionsList" class="transactions-list">
+                <p class="empty-state">Aucun paiement pour le moment.</p>
+            </div>
+
+            <button
+                type="button"
+                class="btn btn-text"
+                onclick="clearAllPayments()"
+            >
+                🗑️ Effacer tous les paiements
+            </button>
+        </section>
+
+        <!-- Historique dépenses prévues -->
+        <section class="card">
+            <h2>🔮 Dépenses à prévoir enregistrées</h2>
+            <div id="plannedList" class="transactions-list">
+                <p class="empty-state">Aucune dépense prévue pour le moment.</p>
+            </div>
+        </section>
+
+        <!-- Historique dettes -->
+        <section class="card">
+            <h2>💳 Mes dettes</h2>
+            <div id="debtsList" class="transactions-list">
+                <p class="empty-state">Aucune dette pour le moment.</p>
+            </div>
+        </section>
+
+        <!-- Stats -->
+        <section class="card">
+            <h2>📈 Répartition des dépenses du mois</h2>
+            <div id="categoryStats" class="category-stats">
+                <p class="empty-state">Aucune dépense pour le mois actuel.</p>
+            </div>
+        </section>
+
+    </main>
+
+    <script src="app.js"></script>
+</body>
+</html>
