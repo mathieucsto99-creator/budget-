@@ -2,17 +2,30 @@ const AppState = {
     monthlyBudget: 0,
     weeklyBudget: 0,
     payments: [],
-    calendarDate: firstDayOfMonth(new Date())
+    calendarDate: new Date(
+        new Date().getFullYear(),
+        new Date().getMonth(),
+        1,
+        12,
+        0,
+        0,
+        0
+    )
 };
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', function () {
     loadData();
 
-    document.getElementById('monthlyBudget').value =
-        AppState.monthlyBudget || '';
+    const budgetInput = document.getElementById('monthlyBudget');
+    const dateInput = document.getElementById('expenseDate');
 
-    document.getElementById('expenseDate').value =
-        localDateString(new Date());
+    if (budgetInput) {
+        budgetInput.value = AppState.monthlyBudget || '';
+    }
+
+    if (dateInput) {
+        dateInput.value = localDateString(new Date());
+    }
 
     refreshApp();
 });
@@ -30,26 +43,33 @@ function loadData() {
         AppState.monthlyBudget = Number(data.monthlyBudget) || 0;
         AppState.weeklyBudget = Number(data.weeklyBudget) || 0;
 
-        const oldPayments = data.payments || data.transactions || [];
+        const oldPayments = Array.isArray(data.payments)
+            ? data.payments
+            : Array.isArray(data.transactions)
+                ? data.transactions
+                : [];
 
-        AppState.payments = Array.isArray(oldPayments)
-            ? oldPayments.map((payment, index) => {
-                return {
-                    id: String(payment.id || createLegacyId(payment, index)),
-                    amount: Number(payment.amount) || 0,
-                    merchant: payment.merchant || 'Paiement sans nom',
-                    category: payment.category || 'other',
-                    date: payment.date || localDateString(
-                        new Date(payment.timestamp || new Date())
-                    ),
-                    frequency: validFrequency(payment.frequency),
-                    timestamp: payment.timestamp || new Date().toISOString()
-                };
-            })
-            : [];
+        AppState.payments = oldPayments.map(function (payment, index) {
+            return {
+                id: String(
+                    payment.id ||
+                    createLegacyId(payment, index)
+                ),
+                amount: Number(payment.amount) || 0,
+                merchant: payment.merchant || 'Paiement sans nom',
+                category: payment.category || 'other',
+                date: payment.date || localDateString(
+                    new Date(payment.timestamp || new Date())
+                ),
+                frequency: validFrequency(payment.frequency),
+                timestamp: payment.timestamp || new Date().toISOString()
+            };
+        });
 
         saveData();
     } catch (error) {
+        console.error('Erreur de lecture des données :', error);
+
         AppState.monthlyBudget = 0;
         AppState.weeklyBudget = 0;
         AppState.payments = [];
@@ -65,9 +85,13 @@ function saveData() {
 }
 
 function saveBudget() {
-    const amount = Number.parseFloat(
-        document.getElementById('monthlyBudget').value
-    );
+    const input = document.getElementById('monthlyBudget');
+
+    if (!input) {
+        return;
+    }
+
+    const amount = Number.parseFloat(input.value);
 
     if (!Number.isFinite(amount) || amount <= 0) {
         alert('Veuillez entrer un budget mensuel valide.');
@@ -79,58 +103,93 @@ function saveBudget() {
 
     saveData();
     refreshApp();
+
+    alert('Budget enregistré.');
 }
 
 function addPayment() {
-    const amount = Number.parseFloat(
-        document.getElementById('expenseAmount').value
-    );
+    try {
+        const amountInput = document.getElementById('expenseAmount');
+        const merchantInput = document.getElementById('expenseMerchant');
+        const dateInput = document.getElementById('expenseDate');
+        const frequencyInput = document.getElementById('expenseFrequency');
+        const categoryInput = document.getElementById('expenseCategory');
 
-    const merchant = document.getElementById('expenseMerchant').value.trim()
-        || 'Paiement sans nom';
+        if (
+            !amountInput ||
+            !merchantInput ||
+            !dateInput ||
+            !frequencyInput ||
+            !categoryInput
+        ) {
+            alert(
+                'Un champ du formulaire est introuvable. Vérifiez que index.html a été remplacé au complet.'
+            );
+            return;
+        }
 
-    const date = document.getElementById('expenseDate').value;
-    const frequency = validFrequency(
-        document.getElementById('expenseFrequency').value
-    );
-    const category = document.getElementById('expenseCategory').value;
+        const amount = Number.parseFloat(amountInput.value);
+        const merchant = merchantInput.value.trim() || 'Paiement sans nom';
+        const date = dateInput.value;
+        const frequency = validFrequency(frequencyInput.value);
+        const category = categoryInput.value;
 
-    if (!Number.isFinite(amount) || amount <= 0) {
-        alert('Veuillez entrer un montant valide.');
-        return;
+        if (!Number.isFinite(amount) || amount <= 0) {
+            alert('Veuillez entrer un montant valide, par exemple 24.99.');
+            return;
+        }
+
+        if (!date) {
+            alert('Veuillez choisir une date de départ.');
+            return;
+        }
+
+        const payment = {
+            id: createId(),
+            amount: amount,
+            merchant: merchant,
+            category: category,
+            date: date,
+            frequency: frequency,
+            timestamp: new Date().toISOString()
+        };
+
+        AppState.payments.unshift(payment);
+
+        const paymentDate = dateFromString(date);
+
+        if (paymentDate) {
+            AppState.calendarDate = new Date(
+                paymentDate.getFullYear(),
+                paymentDate.getMonth(),
+                1,
+                12,
+                0,
+                0,
+                0
+            );
+        }
+
+        saveData();
+        refreshApp();
+
+        amountInput.value = '';
+        merchantInput.value = '';
+        dateInput.value = localDateString(new Date());
+        frequencyInput.value = 'one-time';
+        categoryInput.value = 'groceries';
+
+        alert('Paiement ajouté : ' + merchant + ' — ' + money(amount));
+    } catch (error) {
+        console.error('Erreur lors de l’ajout :', error);
+        alert(
+            'Une erreur est survenue lors de l’ajout. Vérifiez que le montant, la date et les autres champs sont remplis.'
+        );
     }
-
-    if (!date) {
-        alert('Veuillez choisir une date.');
-        return;
-    }
-
-    AppState.payments.unshift({
-        id: createId(),
-        amount: amount,
-        merchant: merchant,
-        category: category,
-        date: date,
-        frequency: frequency,
-        timestamp: new Date().toISOString()
-    });
-
-    const paymentDate = dateFromString(date);
-
-    AppState.calendarDate = firstDayOfMonth(paymentDate);
-
-    saveData();
-    refreshApp();
-
-    document.getElementById('expenseAmount').value = '';
-    document.getElementById('expenseMerchant').value = '';
-    document.getElementById('expenseDate').value = localDateString(new Date());
-    document.getElementById('expenseFrequency').value = 'one-time';
-    document.getElementById('expenseCategory').value = 'groceries';
 }
 
 function deletePayment(paymentId) {
-    const payment = AppState.payments.find(item => {
+    const payment = AppState.payments.find(function (item) {
         return String(item.id) === String(paymentId);
     });
 
@@ -155,7 +214,7 @@ function deletePayment(paymentId) {
         return;
     }
 
-    AppState.payments = AppState.payments.filter(item => {
+    AppState.payments = AppState.payments.filter(function (item) {
         return String(item.id) !== String(paymentId);
     });
 
@@ -242,6 +301,10 @@ function renderCalendar() {
     const title = document.getElementById('calendarTitle');
     const summary = document.getElementById('calendarSummary');
 
+    if (!grid || !title || !summary) {
+        return;
+    }
+
     const year = AppState.calendarDate.getFullYear();
     const month = AppState.calendarDate.getMonth();
 
@@ -257,7 +320,9 @@ function renderCalendar() {
 
     const monthTotal = Object.values(paymentsByDay)
         .flat()
-        .reduce((sum, payment) => sum + payment.amount, 0);
+        .reduce(function (sum, payment) {
+            return sum + payment.amount;
+        }, 0);
 
     summary.textContent = money(monthTotal) + ' planifié ce mois-ci';
 
@@ -271,56 +336,52 @@ function renderCalendar() {
 
     for (let day = 1; day <= daysInMonth; day += 1) {
         const key = dateKey(year, month, day);
+
         const dayPayments = (paymentsByDay[key] || [])
-            .sort((a, b) => b.amount - a.amount);
+            .sort(function (first, second) {
+                return second.amount - first.amount;
+            });
 
         const visiblePayments = dayPayments.slice(0, 3);
         const hiddenCount = dayPayments.length - visiblePayments.length;
 
-        const paymentsHtml = visiblePayments.map(payment => {
-            return `
-                <div class="calendar-payment ${payment.frequency}">
-                    <div class="calendar-payment-top">
-                        <span class="calendar-payment-name">
-                            ${html(payment.merchant)}
-                        </span>
-
-                        <button
-                            type="button"
-                            class="calendar-delete-button"
-                            onclick="deletePayment('${attribute(payment.id)}')"
-                            title="Supprimer"
-                        >
-                            ×
-                        </button>
-                    </div>
-
-                    <span class="calendar-payment-amount">
-                        ${compactMoney(payment.amount)}
-                    </span>
-                </div>
-            `;
+        const paymentsHtml = visiblePayments.map(function (payment) {
+            return (
+                '<div class="calendar-payment ' + payment.frequency + '">' +
+                    '<div class="calendar-payment-top">' +
+                        '<span class="calendar-payment-name">' +
+                            html(payment.merchant) +
+                        '</span>' +
+                        '<button type="button" class="calendar-delete-button" ' +
+                            'onclick="deletePayment(\'' +
+                            attribute(payment.id) +
+                            '\')" title="Supprimer">×</button>' +
+                    '</div>' +
+                    '<span class="calendar-payment-amount">' +
+                        compactMoney(payment.amount) +
+                    '</span>' +
+                '</div>'
+            );
         }).join('');
 
         const moreHtml = hiddenCount > 0
-            ? `
-                <button
-                    type="button"
-                    class="calendar-more-payments"
-                    onclick="showDayPayments('${key}')"
-                >
-                    + ${hiddenCount} autre${hiddenCount > 1 ? 's' : ''}
-                </button>
-            `
+            ? (
+                '<button type="button" class="calendar-more-payments" ' +
+                    'onclick="showDayPayments(\'' + key + '\')">' +
+                    '+ ' + hiddenCount + ' autre' +
+                    (hiddenCount > 1 ? 's' : '') +
+                '</button>'
+            )
             : '';
 
-        const dayTotal = dayPayments.reduce(
-            (sum, payment) => sum + payment.amount,
-            0
-        );
+        const dayTotal = dayPayments.reduce(function (sum, payment) {
+            return sum + payment.amount;
+        }, 0);
 
         const totalHtml = dayPayments.length > 0
-            ? `<div class="calendar-day-total">${compactMoney(dayTotal)}</div>`
+            ? '<div class="calendar-day-total">' +
+                compactMoney(dayTotal) +
+              '</div>'
             : '';
 
         const todayClass = sameDate(
@@ -332,14 +393,14 @@ function renderCalendar() {
             ? 'has-payments'
             : '';
 
-        cells.push(`
-            <div class="calendar-day ${todayClass} ${paymentClass}">
-                <div class="calendar-day-number">${day}</div>
-                ${paymentsHtml}
-                ${moreHtml}
-                ${totalHtml}
-            </div>
-        `);
+        cells.push(
+            '<div class="calendar-day ' + todayClass + ' ' + paymentClass + '">' +
+                '<div class="calendar-day-number">' + day + '</div>' +
+                paymentsHtml +
+                moreHtml +
+                totalHtml +
+            '</div>'
+        );
     }
 
     const missingCells = cells.length % 7 === 0
@@ -359,9 +420,16 @@ function showDayPayments(key) {
     const month = parts[1] - 1;
 
     const byDay = paymentsForMonth(year, month);
-    const payments = (byDay[key] || []).sort((a, b) => b.amount - a.amount);
 
-    const list = payments.map((payment, index) => {
+    const payments = (byDay[key] || []).sort(function (first, second) {
+        return second.amount - first.amount;
+    });
+
+    if (payments.length === 0) {
+        return;
+    }
+
+    const list = payments.map(function (payment, index) {
         return (
             (index + 1) + '. ' +
             payment.merchant +
@@ -373,22 +441,26 @@ function showDayPayments(key) {
         );
     }).join('\n');
 
-    const total = payments.reduce(
-        (sum, payment) => sum + payment.amount,
-        0
-    );
+    const total = payments.reduce(function (sum, payment) {
+        return sum + payment.amount;
+    }, 0);
 
     alert(
         dateLabel(key) +
         '\n\n' +
         list +
-        '\n\nTotal : ' + money(total) +
-        '\n\nUtilisez le × ou le bouton Supprimer dans l’historique pour retirer un paiement.'
+        '\n\nTotal : ' +
+        money(total) +
+        '\n\nPour supprimer : utilisez le × sur un paiement visible ou le bouton Supprimer dans l’historique.'
     );
 }
 
 function renderHistory() {
     const container = document.getElementById('transactionsList');
+
+    if (!container) {
+        return;
+    }
 
     if (AppState.payments.length === 0) {
         container.innerHTML =
@@ -396,50 +468,52 @@ function renderHistory() {
         return;
     }
 
-    const sortedPayments = [...AppState.payments].sort((a, b) => {
-        return dateFromString(b.date) - dateFromString(a.date);
+    const sortedPayments = [...AppState.payments].sort(function (first, second) {
+        return dateFromString(second.date) - dateFromString(first.date);
     });
 
-    container.innerHTML = sortedPayments.map(payment => {
-        return `
-            <div class="transaction-item">
-                <div class="transaction-info">
-                    <div class="transaction-merchant">
-                        ${html(payment.merchant)}
-                    </div>
-
-                    <div class="transaction-meta">
-                        ${dateLabel(payment.date)}
-                        • ${categoryIcon(payment.category)}
-                        ${categoryName(payment.category)}
-                        • ${frequencyName(payment.frequency)}
-                    </div>
-                </div>
-
-                <div class="transaction-actions">
-                    <div class="transaction-amount">
-                        -${money(payment.amount)}
-                    </div>
-
-                    <button
-                        type="button"
-                        class="delete-transaction-button"
-                        onclick="deletePayment('${attribute(payment.id)}')"
-                    >
-                        Supprimer
-                    </button>
-                </div>
-            </div>
-        `;
+    container.innerHTML = sortedPayments.map(function (payment) {
+        return (
+            '<div class="transaction-item">' +
+                '<div class="transaction-info">' +
+                    '<div class="transaction-merchant">' +
+                        html(payment.merchant) +
+                    '</div>' +
+                    '<div class="transaction-meta">' +
+                        dateLabel(payment.date) +
+                        ' • ' +
+                        categoryIcon(payment.category) +
+                        ' ' +
+                        categoryName(payment.category) +
+                        ' • ' +
+                        frequencyName(payment.frequency) +
+                    '</div>' +
+                '</div>' +
+                '<div class="transaction-actions">' +
+                    '<div class="transaction-amount">-' +
+                        money(payment.amount) +
+                    '</div>' +
+                    '<button type="button" class="delete-transaction-button" ' +
+                        'onclick="deletePayment(\'' +
+                        attribute(payment.id) +
+                        '\')">Supprimer</button>' +
+                '</div>' +
+            '</div>'
+        );
     }).join('');
 }
 
 function renderCategoryStats() {
     const container = document.getElementById('categoryStats');
+
+    if (!container) {
+        return;
+    }
+
     const now = new Date();
     const totals = {};
 
-    AppState.payments.forEach(payment => {
+    AppState.payments.forEach(function (payment) {
         const count = occurrencesInPeriod(
             payment,
             startOfMonth(now),
@@ -455,10 +529,9 @@ function renderCategoryStats() {
             payment.amount * count;
     });
 
-    const total = Object.values(totals).reduce(
-        (sum, amount) => sum + amount,
-        0
-    );
+    const total = Object.values(totals).reduce(function (sum, amount) {
+        return sum + amount;
+    }, 0);
 
     if (total <= 0) {
         container.innerHTML =
@@ -467,18 +540,30 @@ function renderCategoryStats() {
     }
 
     container.innerHTML = Object.entries(totals)
-        .sort(([, amountA], [, amountB]) => amountB - amountA)
-        .map(([category, amount]) => {
+        .sort(function (first, second) {
+            return second[1] - first[1];
+        })
+        .map(function (entry) {
+            const category = entry[0];
+            const amount = entry[1];
             const categoryPercent = Math.round((amount / total) * 100);
 
-            return `
-                <div class="category-stat">
-                    <div class="icon">${categoryIcon(category)}</div>
-                    <div class="name">${categoryName(category)}</div>
-                    <div class="amount">${money(amount)}</div>
-                    <div class="percent">${categoryPercent}% du mois</div>
-                </div>
-            `;
+            return (
+                '<div class="category-stat">' +
+                    '<div class="icon">' +
+                        categoryIcon(category) +
+                    '</div>' +
+                    '<div class="name">' +
+                        categoryName(category) +
+                    '</div>' +
+                    '<div class="amount">' +
+                        money(amount) +
+                    '</div>' +
+                    '<div class="percent">' +
+                        categoryPercent +
+                        '% du mois</div>' +
+                '</div>'
+            );
         })
         .join('');
 }
@@ -491,9 +576,10 @@ function exportCalendar() {
 
     const stamp = icsDateTime(new Date());
 
-    const events = AppState.payments.map(payment => {
+    const events = AppState.payments.map(function (payment) {
         const start = dateFromString(payment.date);
         const end = new Date(start);
+
         end.setDate(end.getDate() + 1);
 
         const lines = [
@@ -545,25 +631,21 @@ function exportCalendar() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
 
-    const today = new Date();
-
     link.href = url;
-    link.download =
-        'budget-calendrier-' +
-        localDateString(today) +
+    link.download = 'budget-calendrier-' +
+        localDateString(new Date()) +
         '.ics';
 
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
 
-    setTimeout(() => {
+    setTimeout(function () {
         URL.revokeObjectURL(url);
     }, 1000);
 
     alert(
-        'Le fichier .ics a été téléchargé.\n\n' +
-        'Ouvrez-le dans vos téléchargements pour l’importer dans votre calendrier.'
+        'Le fichier .ics a été téléchargé. Ouvrez-le dans vos téléchargements pour l’importer dans votre calendrier.'
     );
 }
 
@@ -588,8 +670,8 @@ function paymentsForMonth(year, month) {
     const end = new Date(year, month + 1, 0, 12, 0, 0, 0);
     const byDay = {};
 
-    AppState.payments.forEach(payment => {
-        occurrenceDates(payment, start, end).forEach(date => {
+    AppState.payments.forEach(function (payment) {
+        occurrenceDates(payment, start, end).forEach(function (date) {
             const key = dateKey(
                 date.getFullYear(),
                 date.getMonth(),
@@ -608,7 +690,7 @@ function paymentsForMonth(year, month) {
 }
 
 function spentInPeriod(start, end) {
-    return AppState.payments.reduce((total, payment) => {
+    return AppState.payments.reduce(function (total, payment) {
         return total + payment.amount * occurrencesInPeriod(
             payment,
             start,
@@ -718,6 +800,10 @@ function monthlyDate(year, month, day) {
 function updateBar(id, value) {
     const element = document.getElementById(id);
 
+    if (!element) {
+        return;
+    }
+
     element.style.width = Math.min(value, 100) + '%';
     element.className = 'progress-fill';
 
@@ -731,6 +817,10 @@ function updateBar(id, value) {
 function updateRemaining(id, value) {
     const element = document.getElementById(id);
 
+    if (!element) {
+        return;
+    }
+
     element.textContent = 'Reste : ' + money(value);
     element.className = value < 0
         ? 'remaining negative'
@@ -738,7 +828,11 @@ function updateRemaining(id, value) {
 }
 
 function setText(id, text) {
-    document.getElementById(id).textContent = text;
+    const element = document.getElementById(id);
+
+    if (element) {
+        element.textContent = text;
+    }
 }
 
 function percent(spent, budget) {
@@ -758,18 +852,6 @@ function validFrequency(value) {
     ];
 
     return values.includes(value) ? value : 'one-time';
-}
-
-function firstDayOfMonth(date) {
-    return new Date(
-        date.getFullYear(),
-        date.getMonth(),
-        1,
-        12,
-        0,
-        0,
-        0
-    );
 }
 
 function startOfMonth(date) {
@@ -879,6 +961,10 @@ function compactMoney(amount) {
 
 function dateLabel(value) {
     const date = dateFromString(value);
+
+    if (!date) {
+        return 'Date inconnue';
+    }
 
     return new Intl.DateTimeFormat('fr-CA', {
         day: '2-digit',
