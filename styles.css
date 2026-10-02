@@ -609,3 +609,57 @@ body {
         font-size: 0.7rem;
     }
 }
+.btn-income {
+    background: #047857;
+    color: #FFFFFF;
+}
+
+.btn-income:hover {
+    background: #065F46;
+}
+
+.income-card {
+    border-left-color: #047857;
+}
+
+.income-value {
+    color: #047857 !important;
+}
+
+.income-dot {
+    background: #047857;
+}
+
+.calendar-payment.income-event {
+    background: #D1FAE5;
+    border-left-color: #047857;
+    color: #064E3B;
+}
+
+.income-history-item {
+    background: #F0FDF4;
+}
+
+.income-amount {
+    color: #047857;
+    font-size: 1rem;
+    font-weight: 800;
+    white-space: nowrap;
+}
+
+@media (prefers-color-scheme: dark) {
+    .income-history-item {
+        background: #134E4A;
+    }
+
+    .calendar-payment.income-event {
+        background: #065F46;
+        border-left-color: #6EE7B7;
+        color: #ECFDF5;
+    }
+
+    .income-amount,
+    .income-value {
+        color: #6EE7B7 !important;
+    }
+}
