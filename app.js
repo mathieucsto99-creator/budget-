@@ -1,23 +1,16 @@
 const AppState = {
-    monthlyBudget: 0,
-    weeklyBudget: 0,
     payments: [],
+    incomes: [],
     calendarDate: firstDayOfMonth(new Date())
 };
 
 document.addEventListener('DOMContentLoaded', function () {
     loadData();
 
-    const budgetInput = document.getElementById('monthlyBudget');
-    const dateInput = document.getElementById('expenseDate');
+    const today = localDateString(new Date());
 
-    if (budgetInput) {
-        budgetInput.value = AppState.monthlyBudget || '';
-    }
-
-    if (dateInput) {
-        dateInput.value = localDateString(new Date());
-    }
+    document.getElementById('expenseDate').value = today;
+    document.getElementById('incomeDate').value = today;
 
     refreshApp();
 });
@@ -32,9 +25,6 @@ function loadData() {
     try {
         const data = JSON.parse(saved);
 
-        AppState.monthlyBudget = Number(data.monthlyBudget) || 0;
-        AppState.weeklyBudget = Number(data.weeklyBudget) || 0;
-
         const oldPayments = Array.isArray(data.payments)
             ? data.payments
             : Array.isArray(data.transactions)
@@ -42,123 +32,174 @@ function loadData() {
                 : [];
 
         AppState.payments = oldPayments.map(function (payment, index) {
-            return {
-                id: String(payment.id || createLegacyId(payment, index)),
-                amount: Number(payment.amount) || 0,
-                merchant: payment.merchant || 'Paiement sans nom',
-                category: payment.category || 'other',
-                date: payment.date || localDateString(
-                    new Date(payment.timestamp || new Date())
-                ),
-                frequency: validFrequency(payment.frequency),
-                timestamp: payment.timestamp || new Date().toISOString()
-            };
+            return normalizeItem(payment, index, 'payment');
         });
+
+        AppState.incomes = Array.isArray(data.incomes)
+            ? data.incomes.map(function (income, index) {
+                return normalizeItem(income, index, 'income');
+            })
+            : [];
 
         saveData();
     } catch (error) {
         console.error('Erreur de lecture des données :', error);
 
-        AppState.monthlyBudget = 0;
-        AppState.weeklyBudget = 0;
         AppState.payments = [];
+        AppState.incomes = [];
     }
+}
+
+function normalizeItem(item, index, type) {
+    return {
+        id: String(
+            item.id ||
+            type + '-' +
+            Date.now() +
+            '-' +
+            index +
+            '-' +
+            Math.random().toString(16).slice(2)
+        ),
+        amount: Number(item.amount) || 0,
+        merchant: item.merchant || item.name || (
+            type === 'income' ? 'Revenu sans nom' : 'Paiement sans nom'
+        ),
+        category: item.category || 'other',
+        date: item.date || localDateString(
+            new Date(item.timestamp || new Date())
+        ),
+        frequency: validFrequency(item.frequency),
+        timestamp: item.timestamp || new Date().toISOString()
+    };
 }
 
 function saveData() {
     localStorage.setItem('budgetApp', JSON.stringify({
-        monthlyBudget: AppState.monthlyBudget,
-        weeklyBudget: AppState.weeklyBudget,
-        payments: AppState.payments
+        payments: AppState.payments,
+        incomes: AppState.incomes
     }));
 }
 
-function saveBudget() {
-    const input = document.getElementById('monthlyBudget');
+function addIncome() {
+    const amountInput = document.getElementById('incomeAmount');
+    const nameInput = document.getElementById('incomeName');
+    const dateInput = document.getElementById('incomeDate');
+    const frequencyInput = document.getElementById('incomeFrequency');
 
-    if (!input) {
-        return;
-    }
-
-    const amount = Number.parseFloat(input.value);
+    const amount = Number.parseFloat(amountInput.value);
+    const merchant = nameInput.value.trim() || 'Revenu sans nom';
+    const date = dateInput.value;
+    const frequency = validFrequency(frequencyInput.value);
 
     if (!Number.isFinite(amount) || amount <= 0) {
-        alert('Veuillez entrer un budget mensuel valide.');
+        alert('Veuillez entrer un montant de revenu valide.');
         return;
     }
 
-    AppState.monthlyBudget = amount;
-    AppState.weeklyBudget = amount / 4.33;
+    if (!date) {
+        alert('Veuillez choisir une première date de paie.');
+        return;
+    }
+
+    AppState.incomes.unshift({
+        id: createId(),
+        amount: amount,
+        merchant: merchant,
+        category: 'income',
+        date: date,
+        frequency: frequency,
+        timestamp: new Date().toISOString()
+    });
+
+    const incomeDate = dateFromString(date);
+
+    if (incomeDate) {
+        AppState.calendarDate = firstDayOfMonth(incomeDate);
+    }
+
+    saveData();
+    refreshApp();
+
+    amountInput.value = '';
+    nameInput.value = '';
+    dateInput.value = localDateString(new Date());
+    frequencyInput.value = 'biweekly';
+}
+
+function deleteIncome(incomeId) {
+    const income = AppState.incomes.find(function (item) {
+        return String(item.id) === String(incomeId);
+    });
+
+    if (!income) {
+        return;
+    }
+
+    if (!confirm(
+        'Supprimer ce revenu ?\n\n' +
+        income.merchant +
+        ' — ' +
+        money(income.amount)
+    )) {
+        return;
+    }
+
+    AppState.incomes = AppState.incomes.filter(function (item) {
+        return String(item.id) !== String(incomeId);
+    });
 
     saveData();
     refreshApp();
 }
 
 function addPayment() {
-    try {
-        const amountInput = document.getElementById('expenseAmount');
-        const merchantInput = document.getElementById('expenseMerchant');
-        const dateInput = document.getElementById('expenseDate');
-        const frequencyInput = document.getElementById('expenseFrequency');
-        const categoryInput = document.getElementById('expenseCategory');
+    const amountInput = document.getElementById('expenseAmount');
+    const merchantInput = document.getElementById('expenseMerchant');
+    const dateInput = document.getElementById('expenseDate');
+    const frequencyInput = document.getElementById('expenseFrequency');
+    const categoryInput = document.getElementById('expenseCategory');
 
-        if (
-            !amountInput ||
-            !merchantInput ||
-            !dateInput ||
-            !frequencyInput ||
-            !categoryInput
-        ) {
-            alert(
-                'Un champ du formulaire est introuvable. Vérifiez que index.html est complet.'
-            );
-            return;
-        }
+    const amount = Number.parseFloat(amountInput.value);
+    const merchant = merchantInput.value.trim() || 'Paiement sans nom';
+    const date = dateInput.value;
+    const frequency = validFrequency(frequencyInput.value);
+    const category = categoryInput.value;
 
-        const amount = Number.parseFloat(amountInput.value);
-        const merchant = merchantInput.value.trim() || 'Paiement sans nom';
-        const date = dateInput.value;
-        const frequency = validFrequency(frequencyInput.value);
-        const category = categoryInput.value;
-
-        if (!Number.isFinite(amount) || amount <= 0) {
-            alert('Veuillez entrer un montant valide, par exemple 24.99.');
-            return;
-        }
-
-        if (!date) {
-            alert('Veuillez choisir une date de départ.');
-            return;
-        }
-
-        AppState.payments.unshift({
-            id: createId(),
-            amount: amount,
-            merchant: merchant,
-            category: category,
-            date: date,
-            frequency: frequency,
-            timestamp: new Date().toISOString()
-        });
-
-        const paymentDate = dateFromString(date);
-
-        if (paymentDate) {
-            AppState.calendarDate = firstDayOfMonth(paymentDate);
-        }
-
-        saveData();
-        refreshApp();
-
-        amountInput.value = '';
-        merchantInput.value = '';
-        dateInput.value = localDateString(new Date());
-        frequencyInput.value = 'one-time';
-        categoryInput.value = 'groceries';
-    } catch (error) {
-        console.error('Erreur lors de l’ajout :', error);
-        alert('Une erreur est survenue pendant l’ajout du paiement.');
+    if (!Number.isFinite(amount) || amount <= 0) {
+        alert('Veuillez entrer un montant valide.');
+        return;
     }
+
+    if (!date) {
+        alert('Veuillez choisir une date de départ.');
+        return;
+    }
+
+    AppState.payments.unshift({
+        id: createId(),
+        amount: amount,
+        merchant: merchant,
+        category: category,
+        date: date,
+        frequency: frequency,
+        timestamp: new Date().toISOString()
+    });
+
+    const paymentDate = dateFromString(date);
+
+    if (paymentDate) {
+        AppState.calendarDate = firstDayOfMonth(paymentDate);
+    }
+
+    saveData();
+    refreshApp();
+
+    amountInput.value = '';
+    merchantInput.value = '';
+    dateInput.value = localDateString(new Date());
+    frequencyInput.value = 'one-time';
+    categoryInput.value = 'groceries';
 }
 
 function deletePayment(paymentId) {
@@ -167,20 +208,14 @@ function deletePayment(paymentId) {
     });
 
     if (!payment) {
-        alert('Paiement introuvable. Actualisez la page et réessayez.');
         return;
     }
-
-    const recurringText = payment.frequency === 'one-time'
-        ? ''
-        : '\n\nToutes les répétitions futures seront aussi retirées.';
 
     if (!confirm(
         'Supprimer ce paiement ?\n\n' +
         payment.merchant +
         ' — ' +
-        money(payment.amount) +
-        recurringText
+        money(payment.amount)
     )) {
         return;
     }
@@ -214,36 +249,88 @@ function changeCalendarMonth(direction) {
         0
     );
 
-    renderCalendar();
+    refreshApp();
 }
 
 function refreshApp() {
-    renderBudget();
+    renderFinancialSummary();
     renderCalendar();
-    renderHistory();
+    renderIncomes();
+    renderPayments();
     renderCategoryStats();
 }
 
-function renderBudget() {
+function renderFinancialSummary() {
     const now = new Date();
 
-    const monthlySpent = spentInPeriod(
-        startOfMonth(now),
-        endOfMonth(now)
+    const monthStart = startOfMonth(now);
+    const monthEnd = endOfMonth(now);
+    const weekStart = startOfWeek(now);
+    const weekEnd = endOfWeek(now);
+
+    const monthlyIncome = amountInPeriod(
+        AppState.incomes,
+        monthStart,
+        monthEnd
     );
 
-    const weeklySpent = spentInPeriod(
-        startOfWeek(now),
-        endOfWeek(now)
+    const weeklyIncome = amountInPeriod(
+        AppState.incomes,
+        weekStart,
+        weekEnd
     );
 
-    setText('monthlyTotal', money(AppState.monthlyBudget));
-    setText('weeklyTotal', money(AppState.weeklyBudget));
+    const monthlyIncomeCount = occurrenceCountInPeriod(
+        AppState.incomes,
+        monthStart,
+        monthEnd
+    );
+
+    const weeklyIncomeCount = occurrenceCountInPeriod(
+        AppState.incomes,
+        weekStart,
+        weekEnd
+    );
+
+    const monthlySpent = amountInPeriod(
+        AppState.payments,
+        monthStart,
+        monthEnd
+    );
+
+    const weeklySpent = amountInPeriod(
+        AppState.payments,
+        weekStart,
+        weekEnd
+    );
+
+    setText('monthlyIncome', money(monthlyIncome));
+    setText('weeklyIncome', money(weeklyIncome));
+    setText(
+        'monthlyIncomeCount',
+        monthlyIncomeCount + (monthlyIncomeCount > 1 ? ' paies' : ' paie')
+    );
+    setText(
+        'weeklyIncomeCount',
+        weeklyIncomeCount + (weeklyIncomeCount > 1 ? ' paies' : ' paie')
+    );
+
+    setText(
+        'monthlyBalance',
+        'Solde planifié : ' + money(monthlyIncome - monthlySpent)
+    );
+    setText(
+        'weeklyBalance',
+        'Solde planifié : ' + money(weeklyIncome - weeklySpent)
+    );
+
     setText('monthlySpent', money(monthlySpent));
     setText('weeklySpent', money(weeklySpent));
+    setText('monthlyTotal', money(monthlyIncome));
+    setText('weeklyTotal', money(weeklyIncome));
 
-    const monthlyPercent = percent(monthlySpent, AppState.monthlyBudget);
-    const weeklyPercent = percent(weeklySpent, AppState.weeklyBudget);
+    const monthlyPercent = percent(monthlySpent, monthlyIncome);
+    const weeklyPercent = percent(weeklySpent, weeklyIncome);
 
     setText('monthlyPercent', monthlyPercent + '%');
     setText('weeklyPercent', weeklyPercent + '%');
@@ -253,12 +340,12 @@ function renderBudget() {
 
     updateRemaining(
         'monthlyRemaining',
-        AppState.monthlyBudget - monthlySpent
+        monthlyIncome - monthlySpent
     );
 
     updateRemaining(
         'weeklyRemaining',
-        AppState.weeklyBudget - weeklySpent
+        weeklyIncome - weeklySpent
     );
 }
 
@@ -267,10 +354,6 @@ function renderCalendar() {
     const title = document.getElementById('calendarTitle');
     const summary = document.getElementById('calendarSummary');
 
-    if (!grid || !title || !summary) {
-        return;
-    }
-
     const year = AppState.calendarDate.getFullYear();
     const month = AppState.calendarDate.getMonth();
     const start = new Date(year, month, 1, 12, 0, 0, 0);
@@ -278,15 +361,19 @@ function renderCalendar() {
 
     title.textContent = monthTitle(start);
 
-    const paymentsByDay = paymentsForMonth(year, month);
+    const incomesByDay = itemsForMonth(AppState.incomes, year, month);
+    const paymentsByDay = itemsForMonth(AppState.payments, year, month);
 
-    const monthTotal = Object.values(paymentsByDay)
-        .flat()
-        .reduce(function (sum, payment) {
-            return sum + payment.amount;
-        }, 0);
+    const incomeTotal = totalByDay(incomesByDay);
+    const paymentTotal = totalByDay(paymentsByDay);
 
-    summary.textContent = money(monthTotal) + ' planifié ce mois-ci';
+    summary.textContent =
+        'Revenus : ' +
+        money(incomeTotal) +
+        ' • Paiements : ' +
+        money(paymentTotal) +
+        ' • Solde : ' +
+        money(incomeTotal - paymentTotal);
 
     const cells = [];
     const firstWeekday = mondayWeekday(start);
@@ -297,29 +384,59 @@ function renderCalendar() {
 
     for (let day = 1; day <= end.getDate(); day += 1) {
         const key = dateKey(year, month, day);
+        const incomeItems = incomesByDay[key] || [];
+        const paymentItems = paymentsByDay[key] || [];
+        const allItems = [];
 
-        const dayPayments = (paymentsByDay[key] || [])
-            .sort(function (first, second) {
-                return second.amount - first.amount;
+        incomeItems.forEach(function (item) {
+            allItems.push({
+                ...item,
+                itemType: 'income'
             });
+        });
 
-        const visiblePayments = dayPayments.slice(0, 3);
-        const hiddenCount = dayPayments.length - visiblePayments.length;
+        paymentItems.forEach(function (item) {
+            allItems.push({
+                ...item,
+                itemType: 'payment'
+            });
+        });
 
-        const paymentsHtml = visiblePayments.map(function (payment) {
+        allItems.sort(function (first, second) {
+            if (first.itemType !== second.itemType) {
+                return first.itemType === 'income' ? -1 : 1;
+            }
+
+            return second.amount - first.amount;
+        });
+
+        const visibleItems = allItems.slice(0, 3);
+        const hiddenCount = allItems.length - visibleItems.length;
+
+        const itemsHtml = visibleItems.map(function (item) {
+            const className = item.itemType === 'income'
+                ? 'income-event'
+                : item.frequency;
+
+            const deleteCall = item.itemType === 'income'
+                ? 'deleteIncome'
+                : 'deletePayment';
+
+            const prefix = item.itemType === 'income' ? '+' : '-';
+
             return (
-                '<div class="calendar-payment ' + payment.frequency + '">' +
+                '<div class="calendar-payment ' + className + '">' +
                     '<div class="calendar-payment-top">' +
                         '<span class="calendar-payment-name">' +
-                            html(payment.merchant) +
+                            html(item.merchant) +
                         '</span>' +
                         '<button type="button" class="calendar-delete-button" ' +
-                            'onclick="deletePayment(\'' +
-                            attribute(payment.id) +
+                            'onclick="' + deleteCall + '(\'' +
+                            attribute(item.id) +
                             '\')" title="Supprimer">×</button>' +
                     '</div>' +
                     '<span class="calendar-payment-amount">' +
-                        compactMoney(payment.amount) +
+                        prefix + compactMoney(item.amount) +
                     '</span>' +
                 '</div>'
             );
@@ -328,21 +445,28 @@ function renderCalendar() {
         const moreHtml = hiddenCount > 0
             ? (
                 '<button type="button" class="calendar-more-payments" ' +
-                    'onclick="showDayPayments(\'' + key + '\')">' +
+                    'onclick="showDayItems(\'' + key + '\')">' +
                     '+ ' + hiddenCount + ' autre' +
                     (hiddenCount > 1 ? 's' : '') +
                 '</button>'
             )
             : '';
 
-        const dayTotal = dayPayments.reduce(function (sum, payment) {
-            return sum + payment.amount;
+        const dayIncome = incomeItems.reduce(function (sum, item) {
+            return sum + item.amount;
         }, 0);
 
-        const totalHtml = dayPayments.length > 0
-            ? '<div class="calendar-day-total">' +
-                compactMoney(dayTotal) +
-              '</div>'
+        const dayPayments = paymentItems.reduce(function (sum, item) {
+            return sum + item.amount;
+        }, 0);
+
+        const dayTotalHtml = allItems.length > 0
+            ? (
+                '<div class="calendar-day-total">' +
+                    'Solde : ' +
+                    compactMoney(dayIncome - dayPayments) +
+                '</div>'
+            )
             : '';
 
         const todayClass = sameDate(
@@ -350,16 +474,14 @@ function renderCalendar() {
             new Date()
         ) ? 'today' : '';
 
-        const paymentClass = dayPayments.length > 0
-            ? 'has-payments'
-            : '';
+        const itemsClass = allItems.length > 0 ? 'has-payments' : '';
 
         cells.push(
-            '<div class="calendar-day ' + todayClass + ' ' + paymentClass + '">' +
+            '<div class="calendar-day ' + todayClass + ' ' + itemsClass + '">' +
                 '<div class="calendar-day-number">' + day + '</div>' +
-                paymentsHtml +
+                itemsHtml +
                 moreHtml +
-                totalHtml +
+                dayTotalHtml +
             '</div>'
         );
     }
@@ -375,50 +497,87 @@ function renderCalendar() {
     grid.innerHTML = cells.join('');
 }
 
-function showDayPayments(key) {
+function showDayItems(key) {
     const parts = key.split('-').map(Number);
     const year = parts[0];
     const month = parts[1] - 1;
 
-    const payments = (paymentsForMonth(year, month)[key] || [])
-        .sort(function (first, second) {
-            return second.amount - first.amount;
-        });
+    const incomes = itemsForMonth(AppState.incomes, year, month)[key] || [];
+    const payments = itemsForMonth(AppState.payments, year, month)[key] || [];
 
-    if (payments.length === 0) {
-        return;
-    }
-
-    const list = payments.map(function (payment, index) {
-        return (
-            (index + 1) + '. ' +
-            payment.merchant +
-            ' — ' +
-            money(payment.amount) +
-            ' (' +
-            frequencyName(payment.frequency) +
-            ')'
-        );
+    const incomeText = incomes.map(function (item) {
+        return '• Revenu : ' + item.merchant + ' — +' + money(item.amount);
     }).join('\n');
 
-    const total = payments.reduce(function (sum, payment) {
-        return sum + payment.amount;
+    const paymentText = payments.map(function (item) {
+        return '• Paiement : ' + item.merchant + ' — -' + money(item.amount);
+    }).join('\n');
+
+    const incomeTotal = incomes.reduce(function (sum, item) {
+        return sum + item.amount;
+    }, 0);
+
+    const paymentTotal = payments.reduce(function (sum, item) {
+        return sum + item.amount;
     }, 0);
 
     alert(
         dateLabel(key) +
         '\n\n' +
-        list +
-        '\n\nTotal : ' + money(total)
+        (incomeText || '') +
+        (incomeText && paymentText ? '\n' : '') +
+        (paymentText || '') +
+        '\n\nRevenus : ' +
+        money(incomeTotal) +
+        '\nPaiements : ' +
+        money(paymentTotal) +
+        '\nSolde : ' +
+        money(incomeTotal - paymentTotal)
     );
 }
 
-function renderHistory() {
-    const container = document.getElementById('transactionsList');
+function renderIncomes() {
+    const container = document.getElementById('incomesList');
 
-    if (!container) {
+    if (AppState.incomes.length === 0) {
+        container.innerHTML =
+            '<p class="empty-state">Aucun revenu pour le moment.</p>';
         return;
     }
+
+    const sortedIncomes = [...AppState.incomes].sort(function (first, second) {
+        return dateFromString(first.date) - dateFromString(second.date);
+    });
+
+    container.innerHTML = sortedIncomes.map(function (income) {
+        return (
+            '<div class="transaction-item income-history-item">' +
+                '<div class="transaction-info">' +
+                    '<div class="transaction-merchant">' +
+                        html(income.merchant) +
+                    '</div>' +
+                    '<div class="transaction-meta">' +
+                        dateLabel(income.date) +
+                        ' • ' +
+                        frequencyName(income.frequency) +
+                    '</div>' +
+                '</div>' +
+                '<div class="transaction-actions">' +
+                    '<div class="income-amount">+' +
+                        money(income.amount) +
+                    '</div>' +
+                    '<button type="button" class="delete-transaction-button" ' +
+                        'onclick="deleteIncome(\'' +
+                        attribute(income.id) +
+                        '\')">Supprimer</button>' +
+                '</div>' +
+            '</div>'
+        );
+    }).join('');
+}
+
+function renderPayments() {
+    const container = document.getElementById('transactionsList');
 
     if (AppState.payments.length === 0) {
         container.innerHTML =
@@ -463,16 +622,11 @@ function renderHistory() {
 
 function renderCategoryStats() {
     const container = document.getElementById('categoryStats');
-
-    if (!container) {
-        return;
-    }
-
     const now = new Date();
     const totals = {};
 
     AppState.payments.forEach(function (payment) {
-        const count = occurrencesInPeriod(
+        const count = occurrenceCountForItem(
             payment,
             startOfMonth(now),
             endOfMonth(now)
@@ -531,264 +685,25 @@ function exportPrintableReport() {
     const month = AppState.calendarDate.getMonth();
     const monthStart = new Date(year, month, 1, 12, 0, 0, 0);
 
-    const paymentsByDay = paymentsForMonth(year, month);
+    const incomesByDay = itemsForMonth(AppState.incomes, year, month);
+    const paymentsByDay = itemsForMonth(AppState.payments, year, month);
 
-    const allPayments = Object.values(paymentsByDay)
-        .flat();
+    const incomeTotal = totalByDay(incomesByDay);
+    const paymentTotal = totalByDay(paymentsByDay);
 
-    if (allPayments.length === 0) {
-        alert(
-            'Il n’y a aucun paiement prévu dans ' +
-            monthTitle(monthStart) +
-            '.'
-        );
+    if (incomeTotal === 0 && paymentTotal === 0) {
+        alert('Aucune donnée à exporter pour ce mois.');
         return;
     }
 
-    const monthTotal = allPayments.reduce(function (sum, payment) {
-        return sum + payment.amount;
-    }, 0);
-
-    const reportCalendar = buildReportCalendar(
-        year,
-        month,
-        paymentsByDay
-    );
-
-    const detailedList = buildDetailedList(paymentsByDay);
-
-    const report = buildReportHtml(
+    const report = buildIncomeReportHtml(
         monthStart,
-        allPayments.length,
-        monthTotal,
-        reportCalendar,
-        detailedList
+        incomesByDay,
+        paymentsByDay,
+        incomeTotal,
+        paymentTotal
     );
 
-    downloadReportFile(
-        report,
-        year,
-        month
-    );
-}
-
-function buildReportCalendar(year, month, paymentsByDay) {
-    const start = new Date(year, month, 1, 12, 0, 0, 0);
-    const end = new Date(year, month + 1, 0, 12, 0, 0, 0);
-    const weekdays = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
-
-    let output = '<div class="calendar">';
-
-    weekdays.forEach(function (weekday) {
-        output += '<div class="weekday">' + weekday + '</div>';
-    });
-
-    const firstWeekday = mondayWeekday(start);
-
-    for (let index = 0; index < firstWeekday; index += 1) {
-        output += '<div class="day empty-day"></div>';
-    }
-
-    for (let day = 1; day <= end.getDate(); day += 1) {
-        const key = dateKey(year, month, day);
-
-        const payments = (paymentsByDay[key] || [])
-            .sort(function (first, second) {
-                return second.amount - first.amount;
-            });
-
-        const paymentHtml = payments.map(function (payment) {
-            return (
-                '<div class="calendar-payment ' + payment.frequency + '">' +
-                    '<strong>' + html(payment.merchant) + '</strong><br>' +
-                    html(money(payment.amount)) +
-                '</div>'
-            );
-        }).join('');
-
-        const total = payments.reduce(function (sum, payment) {
-            return sum + payment.amount;
-        }, 0);
-
-        const totalHtml = payments.length > 0
-            ? '<div class="day-total">Total : ' +
-                html(money(total)) +
-              '</div>'
-            : '';
-
-        output += (
-            '<div class="day">' +
-                '<div class="day-number">' + day + '</div>' +
-                paymentHtml +
-                totalHtml +
-            '</div>'
-        );
-    }
-
-    const usedCells = firstWeekday + end.getDate();
-    const missingCells = usedCells % 7 === 0
-        ? 0
-        : 7 - (usedCells % 7);
-
-    for (let index = 0; index < missingCells; index += 1) {
-        output += '<div class="day empty-day"></div>';
-    }
-
-    output += '</div>';
-
-    return output;
-}
-
-function buildDetailedList(paymentsByDay) {
-    return Object.entries(paymentsByDay)
-        .sort(function (first, second) {
-            return dateFromString(first[0]) - dateFromString(second[0]);
-        })
-        .map(function (entry) {
-            const date = entry[0];
-
-            const payments = entry[1].sort(function (first, second) {
-                return second.amount - first.amount;
-            });
-
-            const dayTotal = payments.reduce(function (sum, payment) {
-                return sum + payment.amount;
-            }, 0);
-
-            const paymentRows = payments.map(function (payment) {
-                return (
-                    '<li>' +
-                        '<strong>' + html(payment.merchant) + '</strong>' +
-                        ' — ' + html(money(payment.amount)) +
-                        ' <span class="badge ' + payment.frequency + '">' +
-                            html(frequencyName(payment.frequency)) +
-                        '</span>' +
-                        '<br><span class="details">' +
-                            html(categoryIcon(payment.category) + ' ' + categoryName(payment.category)) +
-                        '</span>' +
-                    '</li>'
-                );
-            }).join('');
-
-            return (
-                '<section class="day-section">' +
-                    '<div class="day-header">' +
-                        '<h3>' + html(dateLabel(date)) + '</h3>' +
-                        '<strong>Total : ' + html(money(dayTotal)) + '</strong>' +
-                    '</div>' +
-                    '<ul>' + paymentRows + '</ul>' +
-                '</section>'
-            );
-        })
-        .join('');
-}
-
-function buildReportHtml(
-    monthStart,
-    paymentCount,
-    monthTotal,
-    reportCalendar,
-    detailedList
-) {
-    const createdOn = new Intl.DateTimeFormat('fr-CA', {
-        day: '2-digit',
-        month: 'long',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-    }).format(new Date());
-
-    return (
-        '<!DOCTYPE html>' +
-        '<html lang="fr-CA">' +
-        '<head>' +
-            '<meta charset="UTF-8">' +
-            '<meta name="viewport" content="width=device-width, initial-scale=1.0">' +
-            '<title>Budget - ' + html(monthTitle(monthStart)) + '</title>' +
-            '<style>' +
-                '* { box-sizing: border-box; }' +
-                'body { color: #111827; font-family: Arial, Helvetica, sans-serif; margin: 0; padding: 24px; }' +
-                'h1 { color: #312E81; margin: 0 0 4px; }' +
-                'h2 { color: #312E81; margin: 28px 0 12px; }' +
-                '.subtitle { color: #4B5563; margin: 0 0 18px; }' +
-                '.summary { background: #EEF2FF; border-left: 5px solid #4F46E5; border-radius: 8px; display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 20px; padding: 16px; }' +
-                '.summary-item { min-width: 160px; }' +
-                '.summary-label { color: #4B5563; display: block; font-size: 12px; margin-bottom: 4px; text-transform: uppercase; }' +
-                '.summary-value { font-size: 18px; font-weight: 700; }' +
-                '.print-button { background: #0F766E; border: none; border-radius: 6px; color: white; cursor: pointer; font-size: 16px; font-weight: 700; margin-bottom: 20px; padding: 12px 18px; }' +
-                '.calendar { border-left: 1px solid #9CA3AF; border-top: 1px solid #9CA3AF; display: grid; grid-template-columns: repeat(7, 1fr); margin-bottom: 28px; }' +
-                '.weekday { background: #EDE9FE; border-bottom: 1px solid #9CA3AF; border-right: 1px solid #9CA3AF; font-size: 12px; font-weight: 700; padding: 8px 4px; text-align: center; }' +
-                '.day { border-bottom: 1px solid #9CA3AF; border-right: 1px solid #9CA3AF; min-height: 115px; padding: 6px; }' +
-                '.empty-day { background: #F9FAFB; }' +
-                '.day-number { font-weight: 700; margin-bottom: 5px; }' +
-                '.calendar-payment { border-left: 4px solid #6B7280; border-radius: 3px; font-size: 10px; line-height: 1.3; margin-bottom: 4px; padding: 3px; word-break: break-word; }' +
-                '.calendar-payment.one-time { background: #FEF3C7; border-left-color: #F59E0B; }' +
-                '.calendar-payment.weekly { background: #DCFCE7; border-left-color: #10B981; }' +
-                '.calendar-payment.biweekly { background: #FCE7F3; border-left-color: #DB2777; }' +
-                '.calendar-payment.monthly { background: #E0E7FF; border-left-color: #4F46E5; }' +
-                '.day-total { font-size: 10px; font-weight: 700; margin-top: 4px; }' +
-                '.day-section { border: 1px solid #D1D5DB; border-radius: 8px; break-inside: avoid; margin-bottom: 12px; padding: 14px; }' +
-                '.day-header { align-items: center; border-bottom: 1px solid #E5E7EB; display: flex; gap: 12px; justify-content: space-between; margin-bottom: 8px; padding-bottom: 8px; }' +
-                '.day-header h3 { margin: 0; }' +
-                'ul { margin: 0; padding-left: 20px; }' +
-                'li { margin-bottom: 8px; }' +
-                '.details { color: #4B5563; font-size: 13px; }' +
-                '.badge { border-radius: 12px; color: #111827; font-size: 11px; font-weight: 700; padding: 2px 7px; }' +
-                '.badge.one-time { background: #FEF3C7; }' +
-                '.badge.weekly { background: #DCFCE7; }' +
-                '.badge.biweekly { background: #FCE7F3; }' +
-                '.badge.monthly { background: #E0E7FF; }' +
-                '.footer { color: #6B7280; font-size: 12px; margin-top: 24px; }' +
-                '@media print { body { padding: 10mm; } .print-button { display: none; } .calendar { break-inside: avoid; } @page { margin: 10mm; size: landscape; } }' +
-            '</style>' +
-        '</head>' +
-        '<body>' +
-            '<h1>Budget Automatisé</h1>' +
-            '<p class="subtitle">Rapport des paiements — ' +
-                html(monthTitle(monthStart)) +
-            '</p>' +
-            '<button class="print-button" onclick="window.print()">' +
-                '🖨️ Imprimer ou enregistrer en PDF' +
-            '</button>' +
-            '<div class="summary">' +
-                '<div class="summary-item">' +
-                    '<span class="summary-label">Mois</span>' +
-                    '<span class="summary-value">' +
-                        html(monthTitle(monthStart)) +
-                    '</span>' +
-                '</div>' +
-                '<div class="summary-item">' +
-                    '<span class="summary-label">Paiements prévus</span>' +
-                    '<span class="summary-value">' +
-                        paymentCount +
-                    '</span>' +
-                '</div>' +
-                '<div class="summary-item">' +
-                    '<span class="summary-label">Total planifié</span>' +
-                    '<span class="summary-value">' +
-                        html(money(monthTotal)) +
-                    '</span>' +
-                '</div>' +
-                '<div class="summary-item">' +
-                    '<span class="summary-label">Budget mensuel</span>' +
-                    '<span class="summary-value">' +
-                        html(money(AppState.monthlyBudget)) +
-                    '</span>' +
-                '</div>' +
-            '</div>' +
-            '<h2>Calendrier du mois</h2>' +
-            reportCalendar +
-            '<h2>Tous les paiements prévus</h2>' +
-            detailedList +
-            '<p class="footer">Rapport généré le ' +
-                html(createdOn) +
-            '.</p>' +
-        '</body>' +
-        '</html>'
-    );
-}
-
-function downloadReportFile(report, year, month) {
     const blob = new Blob(
         [report],
         { type: 'text/html;charset=utf-8' }
@@ -814,18 +729,134 @@ function downloadReportFile(report, year, month) {
     }, 1000);
 
     alert(
-        'Le rapport a été téléchargé comme fichier HTML.\n\n' +
-        'Ouvrez-le dans vos téléchargements, puis utilisez Imprimer ou Enregistrer en PDF.'
+        'Le rapport a été téléchargé. Ouvrez le fichier HTML puis imprimez-le ou enregistrez-le en PDF.'
     );
 }
 
-function paymentsForMonth(year, month) {
+function buildIncomeReportHtml(
+    monthStart,
+    incomesByDay,
+    paymentsByDay,
+    incomeTotal,
+    paymentTotal
+) {
+    const details = buildReportDetails(
+        incomesByDay,
+        paymentsByDay
+    );
+
+    return (
+        '<!DOCTYPE html>' +
+        '<html lang="fr-CA">' +
+        '<head>' +
+            '<meta charset="UTF-8">' +
+            '<title>Budget - ' + html(monthTitle(monthStart)) + '</title>' +
+            '<style>' +
+                '* { box-sizing: border-box; }' +
+                'body { color: #111827; font-family: Arial, sans-serif; margin: 0; padding: 24px; }' +
+                'h1 { color: #312E81; }' +
+                '.summary { background: #EEF2FF; border-radius: 8px; display: flex; flex-wrap: wrap; gap: 16px; padding: 16px; }' +
+                '.summary div { min-width: 170px; }' +
+                '.label { color: #4B5563; display: block; font-size: 12px; text-transform: uppercase; }' +
+                '.value { font-size: 20px; font-weight: 700; }' +
+                '.print { background: #0F766E; border: none; border-radius: 6px; color: white; cursor: pointer; font-size: 16px; font-weight: 700; margin: 20px 0; padding: 12px 18px; }' +
+                '.day { border: 1px solid #D1D5DB; border-radius: 8px; break-inside: avoid; margin: 12px 0; padding: 14px; }' +
+                '.day-header { border-bottom: 1px solid #E5E7EB; display: flex; justify-content: space-between; padding-bottom: 8px; }' +
+                '.income { color: #047857; }' +
+                '.expense { color: #B91C1C; }' +
+                'ul { margin-bottom: 0; }' +
+                '@media print { .print { display: none; } }' +
+            '</style>' +
+        '</head>' +
+        '<body>' +
+            '<h1>Budget Automatisé</h1>' +
+            '<h2>' + html(monthTitle(monthStart)) + '</h2>' +
+            '<button class="print" onclick="window.print()">🖨️ Imprimer ou enregistrer en PDF</button>' +
+            '<div class="summary">' +
+                '<div><span class="label">Revenus prévus</span><span class="value income">+' +
+                    html(money(incomeTotal)) +
+                '</span></div>' +
+                '<div><span class="label">Paiements prévus</span><span class="value expense">-' +
+                    html(money(paymentTotal)) +
+                '</span></div>' +
+                '<div><span class="label">Solde planifié</span><span class="value">' +
+                    html(money(incomeTotal - paymentTotal)) +
+                '</span></div>' +
+            '</div>' +
+            '<h2>Tous les revenus et paiements</h2>' +
+            details +
+        '</body>' +
+        '</html>'
+    );
+}
+
+function buildReportDetails(incomesByDay, paymentsByDay) {
+    const allDates = new Set([
+        ...Object.keys(incomesByDay),
+        ...Object.keys(paymentsByDay)
+    ]);
+
+    return Array.from(allDates)
+        .sort(function (first, second) {
+            return dateFromString(first) - dateFromString(second);
+        })
+        .map(function (date) {
+            const incomes = incomesByDay[date] || [];
+            const payments = paymentsByDay[date] || [];
+
+            const incomeRows = incomes.map(function (item) {
+                return '<li class="income">Revenu : ' +
+                    html(item.merchant) +
+                    ' — +' +
+                    html(money(item.amount)) +
+                    ' (' +
+                    html(frequencyName(item.frequency)) +
+                    ')</li>';
+            }).join('');
+
+            const paymentRows = payments.map(function (item) {
+                return '<li class="expense">Paiement : ' +
+                    html(item.merchant) +
+                    ' — -' +
+                    html(money(item.amount)) +
+                    ' (' +
+                    html(frequencyName(item.frequency)) +
+                    ')</li>';
+            }).join('');
+
+            const incomeTotal = incomes.reduce(function (sum, item) {
+                return sum + item.amount;
+            }, 0);
+
+            const paymentTotal = payments.reduce(function (sum, item) {
+                return sum + item.amount;
+            }, 0);
+
+            return (
+                '<section class="day">' +
+                    '<div class="day-header">' +
+                        '<strong>' + html(dateLabel(date)) + '</strong>' +
+                        '<strong>Solde : ' +
+                            html(money(incomeTotal - paymentTotal)) +
+                        '</strong>' +
+                    '</div>' +
+                    '<ul>' +
+                        incomeRows +
+                        paymentRows +
+                    '</ul>' +
+                '</section>'
+            );
+        })
+        .join('');
+}
+
+function itemsForMonth(items, year, month) {
     const start = new Date(year, month, 1, 12, 0, 0, 0);
     const end = new Date(year, month + 1, 0, 12, 0, 0, 0);
     const byDay = {};
 
-    AppState.payments.forEach(function (payment) {
-        occurrenceDates(payment, start, end).forEach(function (date) {
+    items.forEach(function (item) {
+        occurrenceDatesForItem(item, start, end).forEach(function (date) {
             const key = dateKey(
                 date.getFullYear(),
                 date.getMonth(),
@@ -836,77 +867,91 @@ function paymentsForMonth(year, month) {
                 byDay[key] = [];
             }
 
-            byDay[key].push(payment);
+            byDay[key].push(item);
         });
     });
 
     return byDay;
 }
 
-function spentInPeriod(start, end) {
-    return AppState.payments.reduce(function (total, payment) {
-        return total + payment.amount * occurrencesInPeriod(
-            payment,
+function totalByDay(byDay) {
+    return Object.values(byDay)
+        .flat()
+        .reduce(function (sum, item) {
+            return sum + item.amount;
+        }, 0);
+}
+
+function amountInPeriod(items, start, end) {
+    return items.reduce(function (sum, item) {
+        return sum + item.amount * occurrenceCountForItem(
+            item,
             start,
             end
         );
     }, 0);
 }
 
-function occurrencesInPeriod(payment, start, end) {
-    return occurrenceDates(payment, start, end).length;
+function occurrenceCountInPeriod(items, start, end) {
+    return items.reduce(function (count, item) {
+        return count + occurrenceCountForItem(item, start, end);
+    }, 0);
 }
 
-function occurrenceDates(payment, start, end) {
-    const paymentStart = dateFromString(payment.date);
+function occurrenceCountForItem(item, start, end) {
+    return occurrenceDatesForItem(item, start, end).length;
+}
 
-    if (!paymentStart || paymentStart > end) {
+function occurrenceDatesForItem(item, start, end) {
+    const firstDate = dateFromString(item.date);
+
+    if (!firstDate || firstDate > end) {
         return [];
     }
 
-    if (payment.frequency === 'one-time') {
-        return paymentStart >= start && paymentStart <= end
-            ? [paymentStart]
+    if (item.frequency === 'one-time') {
+        return firstDate >= start && firstDate <= end
+            ? [firstDate]
             : [];
     }
 
-    const interval = payment.frequency === 'weekly'
+    const interval = item.frequency === 'weekly'
         ? 7
-        : payment.frequency === 'biweekly'
+        : item.frequency === 'biweekly'
             ? 14
             : 0;
 
     if (interval > 0) {
-        const date = new Date(paymentStart);
+        const current = new Date(firstDate);
         const dates = [];
 
-        while (date < start) {
-            date.setDate(date.getDate() + interval);
+        while (current < start) {
+            current.setDate(current.getDate() + interval);
         }
 
-        while (date <= end) {
-            dates.push(new Date(date));
-            date.setDate(date.getDate() + interval);
+        while (current <= end) {
+            dates.push(new Date(current));
+            current.setDate(current.getDate() + interval);
         }
 
         return dates;
     }
 
-    if (payment.frequency === 'monthly') {
-        return monthlyDates(paymentStart, start, end);
+    if (item.frequency === 'monthly') {
+        return monthlyDates(firstDate, start, end);
     }
 
     return [];
 }
 
-function monthlyDates(paymentStart, start, end) {
-    let year = paymentStart.getFullYear();
-    let month = paymentStart.getMonth();
-    const day = paymentStart.getDate();
+function monthlyDates(firstDate, start, end) {
+    let year = firstDate.getFullYear();
+    let month = firstDate.getMonth();
+    const day = firstDate.getDate();
 
-    let date = monthlyDate(year, month, day);
+    let current = monthlyDate(year, month, day);
 
-    while (date < start) {
+    while (current < start) {
         month += 1;
 
         if (month > 11) {
@@ -914,14 +959,14 @@ function monthlyDates(paymentStart, start, end) {
             year += 1;
         }
 
-        date = monthlyDate(year, month, day);
+        current = monthlyDate(year, month, day);
     }
 
     const dates = [];
 
-    while (date <= end) {
-        if (date >= paymentStart) {
-            dates.push(new Date(date));
+    while (current <= end) {
+        if (current >= firstDate) {
+            dates.push(new Date(current));
         }
 
         month += 1;
@@ -931,7 +976,7 @@ function monthlyDates(paymentStart, start, end) {
             year += 1;
         }
 
-        date = monthlyDate(year, month, day);
+        current = monthlyDate(year, month, day);
     }
 
     return dates;
@@ -954,10 +999,6 @@ function monthlyDate(year, month, day) {
 function updateBar(id, value) {
     const element = document.getElementById(id);
 
-    if (!element) {
-        return;
-    }
-
     element.style.width = Math.min(value, 100) + '%';
     element.className = 'progress-fill';
 
@@ -971,10 +1012,6 @@ function updateBar(id, value) {
 function updateRemaining(id, value) {
     const element = document.getElementById(id);
 
-    if (!element) {
-        return;
-    }
-
     element.textContent = 'Reste : ' + money(value);
     element.className = value < 0
         ? 'remaining negative'
@@ -982,30 +1019,26 @@ function updateRemaining(id, value) {
 }
 
 function setText(id, text) {
-    const element = document.getElementById(id);
-
-    if (element) {
-        element.textContent = text;
-    }
+    document.getElementById(id).textContent = text;
 }
 
-function percent(spent, budget) {
-    if (!Number.isFinite(budget) || budget <= 0) {
+function percent(spent, total) {
+    if (!Number.isFinite(total) || total <= 0) {
         return 0;
     }
 
-    return Math.min(Math.round((spent / budget) * 100), 100);
+    return Math.min(Math.round((spent / total) * 100), 100);
 }
 
 function validFrequency(value) {
-    const values = [
+    const frequencies = [
         'one-time',
         'weekly',
         'biweekly',
         'monthly'
     ];
 
-    return values.includes(value) ? value : 'one-time';
+    return frequencies.includes(value) ? value : 'one-time';
 }
 
 function firstDayOfMonth(date) {
@@ -1046,10 +1079,9 @@ function endOfMonth(date) {
 
 function startOfWeek(date) {
     const result = new Date(date);
-    const day = result.getDay();
-    const sinceMonday = (day + 6) % 7;
+    const daysSinceMonday = (result.getDay() + 6) % 7;
 
-    result.setDate(result.getDate() - sinceMonday);
+    result.setDate(result.getDate() - daysSinceMonday);
     result.setHours(0, 0, 0, 0);
 
     return result;
@@ -1128,10 +1160,6 @@ function compactMoney(amount) {
 function dateLabel(value) {
     const date = dateFromString(value);
 
-    if (!date) {
-        return 'Date inconnue';
-    }
-
     return new Intl.DateTimeFormat('fr-CA', {
         day: '2-digit',
         month: 'long',
@@ -1148,13 +1176,13 @@ function monthTitle(date) {
 
 function frequencyName(value) {
     const names = {
-        'one-time': 'Unique',
-        weekly: 'Hebdomadaire',
+        'one-time': 'Une seule fois',
+        weekly: 'Chaque semaine',
         biweekly: 'Aux 2 semaines',
-        monthly: 'Mensuelle'
+        monthly: 'Chaque mois'
     };
 
-    return names[value] || 'Unique';
+    return names[value] || 'Une seule fois';
 }
 
 function categoryName(value) {
@@ -1193,19 +1221,6 @@ function createId() {
     }
 
     return Date.now() + '-' + Math.random().toString(16).slice(2);
-}
-
-function createLegacyId(payment, index) {
-    return (
-        'old-' +
-        String(payment.merchant || 'payment') +
-        '-' +
-        String(payment.amount || 0) +
-        '-' +
-        String(payment.date || '') +
-        '-' +
-        index
-    ).replace(/\s/g, '-');
 }
 
 function html(text) {
